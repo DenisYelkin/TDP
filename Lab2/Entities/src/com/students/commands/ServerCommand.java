@@ -18,5 +18,5 @@ public enum ServerCommand implements Serializable {
     APPLY_EDITING,
     FINISH_EDITING,
     REQUEST_ENTITIES,
-    GET_BY_ID;
+    REQUEST_ENTITY_BY_ID;
 }

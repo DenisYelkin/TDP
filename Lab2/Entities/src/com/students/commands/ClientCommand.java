@@ -13,5 +13,7 @@ import java.io.Serializable;
  */
 public enum ClientCommand implements Serializable {
     RECEIVE_MESSAGE,
-    RECEIVE_DATA;
+    RECEIVE_LIST_OF_ENTITIES,
+    RECEIVE_ENTITY,
+    RECEIVE_ENTITY_LOCKED;
 }

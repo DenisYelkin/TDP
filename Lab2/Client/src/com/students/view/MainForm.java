@@ -29,10 +29,9 @@
  */
 package com.students.view;
 
-import com.google.common.collect.Maps;
-import com.students.commands.ClientCommand;
 import com.students.controller.Controller;
-import com.students.controller.DataListener;
+import com.students.controller.EntityListener;
+import com.students.controller.ListOfEntitiesListener;
 import com.students.controller.MessageListener;
 import com.students.entity.AbstractEntity;
 import com.students.entity.Actor;
@@ -40,23 +39,16 @@ import com.students.entity.Director;
 import com.students.entity.EntityType;
 import com.students.entity.Movie;
 import com.students.entity.Character;
-import java.io.File;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.table.DefaultTableModel;
 
 public class MainForm extends javax.swing.JFrame {
 
     private Controller controller;
-    private final DataListener dataListener = new DataListener() {
+    private final ListOfEntitiesListener dataListener = new ListOfEntitiesListener() {
 
         @Override
         public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
@@ -73,22 +65,77 @@ public class MainForm extends javax.swing.JFrame {
                 case ACTOR:
                     entitiesTable.setModel(TableModels.getActorTableModel((List<Actor>) entities));
                     break;
+                case FAKE:
+                    entitiesTable.setModel(new DefaultTableModel());
+                    break;
                 default:
                     break;
             }
         }
     };
 
+    private final MessageListener messageListener = new MessageListener() {
+
+        @Override
+        public void onMessageReceive(EntityType type) {
+            JOptionPane.showMessageDialog(null, String.format("Кто-то внес изменения в: %s\nВам следует нажать Refresh", type.getName()));
+        }
+    };
+
+    private final EntityListener entityListener = new EntityListener() {
+
+        @Override
+        public void onEntityReceive(EntityType type, AbstractEntity entity) {
+            JFrame form = null;
+            try {
+                switch (type) {
+                    case FAKE:
+                        JOptionPane.showMessageDialog(null, "Эта сущность в данный момент редактируется другим пользователем");
+                        break;
+                    case MOVIE:
+                        Movie movie = (Movie) entity;
+                        if (movie != null) {
+                            controller.startEditing(movie);
+                            form = new MovieForm(controller, movie);
+                        }
+                        break;
+                    case CHARACTER:
+                        Character character = (Character) entity;
+                        if (character != null) {
+                            controller.startEditing(character);
+                            form = new CharacterForm(controller, character);
+                        }
+                        break;
+                    case DIRECTOR:
+                        Director director = (Director) entity;
+                        if (director != null) {
+                            controller.startEditing(director);
+                            form = new DirectorForm(controller, director);
+                        }
+                        break;
+                    case ACTOR:
+                        Actor actor = (Actor) entity;
+                        if (actor != null) {
+                            controller.startEditing(actor);
+                            form = new ActorForm(controller, actor);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(null, "Не удалось выполнить операцию");
+            }
+            if (form != null) {
+                form.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                form.setVisible(true);
+            }
+        }
+    };
+
     public MainForm() {
         try {
-            final MainForm thisMainForm = this;
-            controller = new Controller(new MessageListener() {
-
-                @Override
-                public void onMessageReceive(EntityType type) {
-                    JOptionPane.showMessageDialog(thisMainForm, "Кто-то внес изменения в: " + type.getName() + "\nВам следует нажать Refresh");
-                }
-            });
+            controller = new Controller(messageListener, entityListener);            
             initComponents();
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
@@ -119,6 +166,11 @@ public class MainForm extends javax.swing.JFrame {
                 formWindowGainedFocus(evt);
             }
             public void windowLostFocus(java.awt.event.WindowEvent evt) {
+            }
+        });
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
             }
         });
 
@@ -241,46 +293,10 @@ public class MainForm extends javax.swing.JFrame {
             return;
         }
         String id = entitiesTable.getValueAt(selectedRow, 0).toString();
-        JFrame form = null;
         try {
-            switch (type) {
-                case MOVIE:
-                    Movie movie = controller.getMovieById(id);
-                    if (movie != null) {
-                        controller.startEditing(movie);
-                        form = new MovieForm(controller, movie);
-                    }
-                    break;
-                case CHARACTER:
-                    Character character = controller.getCharacterById(id);
-                    if (character != null) {
-                        controller.startEditing(character);
-                        form = new CharacterForm(controller, character);
-                    }
-                    break;
-                case DIRECTOR:
-                    Director director = controller.getDirectorById(id);
-                    if (director != null) {
-                        controller.startEditing(director);
-                        form = new DirectorForm(controller, director);
-                    }
-                    break;
-                case ACTOR:
-                    Actor actor = controller.getActorById(id);
-                    if (actor != null) {
-                        controller.startEditing(actor);
-                        form = new ActorForm(controller, actor);
-                    }
-                    break;
-                default:
-                    break;
-            }
+            controller.requestEntityById(type, id);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-        }
-        if (form != null) {
-            form.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            form.setVisible(true);
         }
     }//GEN-LAST:event_editButtonActionPerformed
 
@@ -309,6 +325,14 @@ public class MainForm extends javax.swing.JFrame {
         controller.refreshData();
         entitiesComboBoxActionPerformed(evt);
     }//GEN-LAST:event_refreshButtonActionPerformed
+
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        try {
+            controller.dispose();
+        } catch (IOException ex) {
+             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+        }
+    }//GEN-LAST:event_formWindowClosing
 
     /**
      * @param args the command line arguments

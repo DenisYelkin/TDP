@@ -15,16 +15,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -33,7 +31,8 @@ import java.util.logging.Logger;
 public class Server {
 
     private static final int PORT = 10500;
-    private static final String MODEL_FILE_STORAGE_NAME = "model.data";
+    private static final String MODEL_FILE_STORAGE_NAME = "model.data"; 
+    public static int counter = 0;
 
     private static final ExecutorService pool;
     private static final Model model;
@@ -54,22 +53,21 @@ public class Server {
         lockedEntities = Sets.newConcurrentHashSet();
     }
 
-    private static Runnable serveClient(ServerSocket serverSocket) throws IOException {
+    private static Runnable serveClient(ServerSocket serverSocket) {
         return () -> {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Socket user = serverSocket.accept();
                     users.add(user);
                     pool.submit(new Worker(user, model));
+                } catch (SocketException e) {
+                    System.out.println("server socket is unavailable");
                 } catch (IOException ex) {
                     System.out.println("Что то пошло не так: " + ex.getMessage());
+                    ex.printStackTrace();
                 }
             }
         };
-    }
-
-    public static void removeUser(Socket socket) {
-        users.remove(socket);
     }
 
     public static void publish(Socket from, EntityType type) {
@@ -77,13 +75,22 @@ public class Server {
             if (user.equals(from)) {
                 return;
             }
-            try (ObjectOutputStream writer = new ObjectOutputStream(user.getOutputStream())) {
-                writer.writeObject(ClientCommand.RECEIVE_MESSAGE);
-                writer.writeObject(type);
-            } catch (IOException e) {
-                System.out.println("Не удалось кому-то доставить сообщение: " + type.getName());
+            synchronized (user) {
+                try {
+                    ObjectOutputStream writer = new ObjectOutputStream(user.getOutputStream());
+                    writer.writeObject(ClientCommand.RECEIVE_MESSAGE);
+                    writer.writeObject(type);
+                    writer.flush();
+                } catch (IOException e) {
+                    System.out.println("Не удалось кому-то доставить сообщение: " + type.getName());
+                    e.printStackTrace();
+                }
             }
         });
+    }
+
+    public static void removeUser(Socket socket) {
+        users.remove(socket);
     }
 
     public static void lockEntity(AbstractEntity entity) {
@@ -94,10 +101,15 @@ public class Server {
         lockedEntities.remove(entity.getId());
     }
 
+    public static boolean isEntityLocked(String entityId) {
+        return lockedEntities.contains(entityId);
+    }
+
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        System.out.println("Server started");
         Timer timer = new Timer();
         SaveDataTimerTask timerTask = new SaveDataTimerTask();
         timer.schedule(timerTask, 20 * 1000, 30 * 1000);
@@ -109,8 +121,10 @@ public class Server {
             pool.shutdownNow();
             timer.cancel();
             timerTask.run();
+            System.out.println("Server stopped");
         } catch (IOException ex) {
             System.out.println("Что то пошло не так: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
@@ -122,13 +136,8 @@ public class Server {
                 model.saveData(new File(MODEL_FILE_STORAGE_NAME));
             } catch (IOException ex) {
                 System.out.println("Не удалось сохранить данные: " + ex.getMessage());
+                ex.printStackTrace();
             }
         }
     }
-
-    /*TODO:
-     check locked entities before editing
-     commands: getById
-    synchronized
-     */
 }

@@ -6,7 +6,7 @@
 package com.students.view;
 
 import com.students.controller.Controller;
-import com.students.controller.DataListener;
+import com.students.controller.ListOfEntitiesListener;
 import com.students.entity.AbstractEntity;
 import com.students.entity.Character;
 import com.students.entity.Director;
@@ -43,7 +43,7 @@ public class MovieForm extends javax.swing.JFrame {
 
     public MovieForm(Controller controller, Movie movie) {
         this.controller = controller;
-        controller.setDataListener(new DataListener() {
+        controller.setDataListener(new ListOfEntitiesListener() {
 
             @Override
             public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
@@ -116,8 +116,7 @@ public class MovieForm extends javax.swing.JFrame {
             controller.requestEntities(EntityType.CHARACTER);
             controller.requestEntities(EntityType.DIRECTOR);
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-            formWindowClosing(null);
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
             this.setVisible(false);
             this.dispose();
         }
@@ -166,11 +165,6 @@ public class MovieForm extends javax.swing.JFrame {
         genresTextField = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent evt) {
-                formWindowClosing(evt);
-            }
-        });
 
         jScrollPane9.setMaximumSize(new java.awt.Dimension(100, 130));
         jScrollPane9.setMinimumSize(new java.awt.Dimension(100, 130));
@@ -397,7 +391,7 @@ public class MovieForm extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void cancelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelButtonActionPerformed
-        setVisible(false);
+        setVisible(false);        
         dispose();
     }//GEN-LAST:event_cancelButtonActionPerformed
 
@@ -451,13 +445,23 @@ public class MovieForm extends javax.swing.JFrame {
                 alertMessage = "Не удалось выполнить операцию";
                 JOptionPane.showMessageDialog(this, alertMessage);
             }
-            setVisible(false);
+            setVisible(false);            
             dispose();
         } else {
             JOptionPane.showMessageDialog(this, alertMessage);
         }
     }//GEN-LAST:event_saveButtonActionPerformed
 
+    @Override
+    public void dispose() {
+        super.dispose(); 
+        try {
+            controller.finishEditing(movie);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+        }
+    }    
+    
     private void characterButtonAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_characterButtonAddActionPerformed
         int index = otherCharactersList.getSelectedIndex();
         if (index >= 0) {
@@ -497,14 +501,6 @@ public class MovieForm extends javax.swing.JFrame {
             fillOtherLists();
         }
     }//GEN-LAST:event_directorButtonDeleteActionPerformed
-
-    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        try {
-            controller.finishEditing(movie);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-        }
-    }//GEN-LAST:event_formWindowClosing
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField budgetTextField;

@@ -15,7 +15,8 @@ public enum EntityType implements Serializable {
     ACTOR("Actors"),
     CHARACTER("Characters"),
     DIRECTOR("Directors"),
-    MOVIE("Movies");
+    MOVIE("Movies"),
+    FAKE("Fake");
     
     private String name;
     
@@ -35,7 +36,7 @@ public enum EntityType implements Serializable {
                 }
             }
         }
-        return null;
+        return FAKE;
     }
     
     public static EntityType fromEntity(AbstractEntity entity) {
@@ -48,6 +49,6 @@ public enum EntityType implements Serializable {
         } else if (entity instanceof Character) {
             return CHARACTER;
         }
-        return null;
+        return FAKE;
     }
 }

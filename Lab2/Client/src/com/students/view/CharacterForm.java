@@ -6,14 +6,13 @@
 package com.students.view;
 
 import com.students.controller.Controller;
-import com.students.controller.DataListener;
+import com.students.controller.ListOfEntitiesListener;
 import com.students.entity.AbstractEntity;
 import com.students.entity.Actor;
 import com.students.entity.Movie;
 import com.students.entity.Character;
 import com.students.entity.EntityType;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
@@ -40,7 +39,7 @@ public class CharacterForm extends javax.swing.JFrame {
 
     public CharacterForm(Controller controller, Character character) {
         this.controller = controller;
-        controller.setDataListener(new DataListener() {
+        controller.setDataListener(new ListOfEntitiesListener() {
 
             @Override
             public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
@@ -86,8 +85,7 @@ public class CharacterForm extends javax.swing.JFrame {
             controller.requestEntities(EntityType.MOVIE);
             controller.requestEntities(EntityType.ACTOR);
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-            formWindowClosing(null);
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
             this.setVisible(false);
             this.dispose();
         }
@@ -124,11 +122,6 @@ public class CharacterForm extends javax.swing.JFrame {
         nameTextField = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent evt) {
-                formWindowClosing(evt);
-            }
-        });
 
         jLabel1.setText("Name");
 
@@ -318,6 +311,16 @@ public class CharacterForm extends javax.swing.JFrame {
         dispose();
     }//GEN-LAST:event_cancelButtonActionPerformed
 
+    @Override
+    public void dispose() {
+        super.dispose(); 
+        try {
+            controller.finishEditing(character);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+        }
+    }  
+    
     private void actorButtonAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_actorButtonAddActionPerformed
         if (currentActor == null) {
             int index = otherActorsList.getSelectedIndex();
@@ -351,14 +354,6 @@ public class CharacterForm extends javax.swing.JFrame {
         movieTextField.setText(null);
         fillOtherLists();
     }//GEN-LAST:event_movieButtonDeleteActionPerformed
-
-    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        try {
-            controller.finishEditing(character);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-        }
-    }//GEN-LAST:event_formWindowClosing
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton actorButtonAdd;

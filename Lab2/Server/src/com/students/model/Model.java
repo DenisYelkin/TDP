@@ -35,25 +35,25 @@ public class Model implements Serializable {
         actors.remove(actor);
         actors.add(actor);
     }
-    
+
     private boolean removeActor(Actor actor) {
         if (actor == null) {
             return false;
         }
-        for (Character character : actor.getCharacters()) {
+        actor.getCharacters().stream().forEach((character) -> {
             removeCharacter(character);
-        }
+        });
         return actors.remove(actor);
     }
 
-    public List<Actor> getActors() {
+    private List<Actor> getActors() {
         return actors;
     }
 
     private void addDirector(Director director) {
-        for (Movie movie : director.getMovies()) {
+        director.getMovies().stream().forEach((movie) -> {
             movie.addDirector(director);
-        }
+        });
         directors.add(director);
     }
 
@@ -66,27 +66,27 @@ public class Model implements Serializable {
         if (director == null) {
             return false;
         }
-        for (Movie movie : director.getMovies()) {
+        director.getMovies().stream().forEach((movie) -> {
             movie.getDirectors().remove(director);
-        }
+        });
         return directors.remove(director);
     }
 
-    public List<Director> getDirectors() {
+    private List<Director> getDirectors() {
         return directors;
     }
 
     private void addMovie(Movie movie) {
         movies.add(movie);
-        for (Director director : movie.getDirectors()) {
+        movie.getDirectors().stream().forEach((director) -> {
             director.getMovies().add(movie);
-        }
-        for (Character character : movie.getCharacters()) {
+        });
+        movie.getCharacters().stream().forEach((character) -> {
             addCharacter(character);
-        }
+        });
     }
 
-    public void editMovie(Movie movie) {
+    private void editMovie(Movie movie) {
         removeMovie(movie);
         addMovie(movie);
     }
@@ -95,16 +95,16 @@ public class Model implements Serializable {
         if (movie == null) {
             return false;
         }
-        for (Director director : movie.getDirectors()) {
+        movie.getDirectors().stream().forEach((director) -> {
             director.getMovies().remove(movie);
-        }
-        for (Character character : movie.getCharacters()) {
+        });
+        movie.getCharacters().stream().forEach((character) -> {
             removeCharacter(character);
-        }
+        });
         return movies.remove(movie);
     }
 
-    public List<Movie> getMovies() {
+    private List<Movie> getMovies() {
         return movies;
     }
 
@@ -114,7 +114,7 @@ public class Model implements Serializable {
         characters.add(character);
     }
 
-    public void editCharacter(Character character) {
+    private void editCharacter(Character character) {
         removeCharacter(character);
         addCharacter(character);
     }
@@ -128,7 +128,7 @@ public class Model implements Serializable {
         return characters.remove(character);
     }
 
-    public List<Character> getCharacters() {
+    private List<Character> getCharacters() {
         return characters;
     }
 
@@ -156,76 +156,103 @@ public class Model implements Serializable {
         return result.isPresent() ? result.get() : null;
     }
 
+    public AbstractEntity getEntityById(EntityType type, String id) {
+        synchronized (this) {
+            switch (type) {
+                case MOVIE:
+                    return getMovieById(id);
+                case ACTOR:
+                    return getActorById(id);
+                case CHARACTER:
+                    return getCharacterById(id);
+                case DIRECTOR:
+                    return getDirectorById(id);
+                default:
+                    throw new IllegalArgumentException("Неопознанный вид сущности");
+            }
+        }
+    }
+
     public boolean removeEntityById(EntityType type, String id) {
-        switch (type) {
-            case MOVIE:
-                return removeMovie(getMovieById(id));
-            case ACTOR:
-                return removeActor(getActorById(id));
-            case CHARACTER:
-                return removeCharacter(getCharacterById(id));
-            case DIRECTOR:
-                return removeDirector(getDirectorById(id));
-            default:
-                throw new IllegalArgumentException("Неопознанный вид сущности");
+        synchronized (this) {
+            switch (type) {
+                case MOVIE:
+                    return removeMovie(getMovieById(id));
+                case ACTOR:
+                    return removeActor(getActorById(id));
+                case CHARACTER:
+                    return removeCharacter(getCharacterById(id));
+                case DIRECTOR:
+                    return removeDirector(getDirectorById(id));
+                default:
+                    throw new IllegalArgumentException("Неопознанный вид сущности");
+            }
         }
     }
 
     public EntityType addEntity(AbstractEntity entity) {
-        if (entity instanceof Movie) {
-            addMovie((Movie) entity);
-            return EntityType.MOVIE;
-        } else if (entity instanceof Character) {
-            addCharacter((Character) entity);
-            return EntityType.CHARACTER;
-        } else if (entity instanceof Actor) {
-            addActor((Actor) entity);
-            return EntityType.ACTOR;
-        } else if (entity instanceof Director) {
-            addDirector((Director) entity);
-            return EntityType.DIRECTOR;
-        } else {
-            throw new IllegalArgumentException("Неопознанный вид сущности");
+        synchronized (this) {
+            if (entity instanceof Movie) {
+                addMovie((Movie) entity);
+                return EntityType.MOVIE;
+            } else if (entity instanceof Character) {
+                addCharacter((Character) entity);
+                return EntityType.CHARACTER;
+            } else if (entity instanceof Actor) {
+                addActor((Actor) entity);
+                return EntityType.ACTOR;
+            } else if (entity instanceof Director) {
+                addDirector((Director) entity);
+                return EntityType.DIRECTOR;
+            } else {
+                throw new IllegalArgumentException("Неопознанный вид сущности");
+            }
         }
     }
 
     public EntityType editEntity(AbstractEntity entity) {
-        if (entity instanceof Movie) {
-            editMovie((Movie) entity);
-            return EntityType.MOVIE;
-        } else if (entity instanceof Character) {
-            editCharacter((Character) entity);
-            return EntityType.CHARACTER;
-        } else if (entity instanceof Actor) {
-            editActor((Actor) entity);
-            return EntityType.ACTOR;
-        } else if (entity instanceof Director) {
-            editDirector((Director) entity);
-            return EntityType.DIRECTOR;
-        } else {
-            throw new IllegalArgumentException("Неопознанный вид сущности");
+        synchronized (this) {
+            if (entity instanceof Movie) {
+                editMovie((Movie) entity);
+                return EntityType.MOVIE;
+            } else if (entity instanceof Character) {
+                editCharacter((Character) entity);
+                return EntityType.CHARACTER;
+            } else if (entity instanceof Actor) {
+                editActor((Actor) entity);
+                return EntityType.ACTOR;
+            } else if (entity instanceof Director) {
+                editDirector((Director) entity);
+                return EntityType.DIRECTOR;
+            } else {
+                throw new IllegalArgumentException("Неопознанный вид сущности");
+            }
         }
     }
 
     public List<? extends AbstractEntity> getEntities(EntityType type) {
-        switch (type) {
-            case MOVIE:
-                return getMovies();
-            case ACTOR:
-                return getActors();
-            case CHARACTER:
-                return getCharacters();
-            case DIRECTOR:
-                return getDirectors();
-            default:
-                throw new IllegalArgumentException("Неопознанный вид сущности");
+        synchronized (this) {
+            switch (type) {
+                case MOVIE:
+                    return getMovies();
+                case ACTOR:
+                    return getActors();
+                case CHARACTER:
+                    return getCharacters();
+                case DIRECTOR:
+                    return getDirectors();
+                default:
+                    throw new IllegalArgumentException("Неопознанный вид сущности");
+            }
         }
     }
 
-    public void saveData(File file) throws IOException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
-            oos.writeObject(this);
-            oos.flush();
+    public void saveData(File file) throws IOException {        
+        synchronized (this) {            
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+                oos.writeObject(this);
+                oos.flush();
+            }
         }
     }
 

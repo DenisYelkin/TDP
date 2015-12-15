@@ -28,4 +28,17 @@ public abstract class AbstractEntity implements Serializable {
     public void setName(String name) {
         this.name = name;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || !(obj instanceof AbstractEntity))
+            return false;
+        return id.equals(((AbstractEntity)obj).id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+    
 }

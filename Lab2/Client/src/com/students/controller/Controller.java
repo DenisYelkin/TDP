@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.LinkedList;
 
 import java.util.List;
@@ -21,19 +22,30 @@ public class Controller {
     private static final int PORT = 10500;
 
     private final Socket socket;
-    private final Map<String, AbstractEntity> moviesCache = Maps.newHashMap();
-    private final Map<String, AbstractEntity> actorsCache = Maps.newHashMap();
-    private final Map<String, AbstractEntity> charactersCache = Maps.newHashMap();
-    private final Map<String, AbstractEntity> directorsCache = Maps.newHashMap();
+    private final Map<String, AbstractEntity> moviesCache = Maps.newConcurrentMap();
+    private final Map<String, AbstractEntity> actorsCache = Maps.newConcurrentMap();
+    private final Map<String, AbstractEntity> charactersCache = Maps.newConcurrentMap();
+    private final Map<String, AbstractEntity> directorsCache = Maps.newConcurrentMap();
     private final ExecutorService pool;
-    private DataListener dataListener;
+    private ListOfEntitiesListener listOfEntitiesListener;
+    private final EntityListener entityListener;
     private final MessageListener messageListener;
 
-    public Controller(MessageListener messageListener) throws IOException {
+    public Controller(MessageListener messageListener, EntityListener entityListener) throws IOException {
         this.messageListener = messageListener;
+        this.entityListener = entityListener;
         socket = new Socket(HOST, PORT);
         pool = Executors.newSingleThreadExecutor();
         pool.submit(() -> receive());
+    }
+
+    public void dispose() throws IOException {
+        pool.shutdownNow();
+        socket.close();
+    }
+
+    public Controller(MessageListener messageListener) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     private abstract class Instruction {
@@ -41,14 +53,15 @@ public class Controller {
         protected abstract void perform(ObjectOutputStream oos) throws IOException;
 
         public void execute() throws IOException {
-            try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
-                perform(oos);
-                oos.flush();
-            }
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            perform(oos);
+            oos.flush();
         }
+
     }
 
     private void instructionForEntity(AbstractEntity entity, ServerCommand command) throws IOException {
+        System.out.println(String.format("instructonForEntity entity.class = %s; command = %s", entity.getClass(), command.name()));
         new Instruction() {
 
             @Override
@@ -90,6 +103,18 @@ public class Controller {
         getCacheByType(type).remove(id);
     }
 
+    public void requestEntityById(EntityType type, String id) throws IOException {
+        new Instruction() {
+
+            @Override
+            protected void perform(ObjectOutputStream oos) throws IOException {
+                oos.writeObject(ServerCommand.REQUEST_ENTITY_BY_ID);
+                oos.writeObject(type);
+                oos.writeObject(id);
+            }
+        }.execute();
+    }
+
     private Map<String, AbstractEntity> getCacheByType(EntityType type) {
         switch (type) {
             case MOVIE:
@@ -106,43 +131,63 @@ public class Controller {
     }
 
     public void receive() {
-        while (true) {
-            try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+        while (!socket.isClosed()) {
+            try {
+                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
                 ClientCommand command = (ClientCommand) ois.readObject();
-                if (command == ClientCommand.RECEIVE_DATA) {
-                    List<? extends AbstractEntity> entities = (List<? extends AbstractEntity>) ois.readObject();
-                    if (entities != null && !entities.isEmpty()) {
-                        EntityType type = EntityType.fromEntity(entities.get(0));
-                        Map<String, AbstractEntity> cache = getCacheByType(type);
-                        entities.stream().forEach((entity) -> {
-                            cache.put(entity.getId(), entity);
-                        });
-                        dataListener.onDataReceive(type, new LinkedList<>(cache.values()));
-                    }
-                } else if (command == ClientCommand.RECEIVE_MESSAGE) {
-                    EntityType type = (EntityType) ois.readObject();
-                    messageListener.onMessageReceive(type);
+                EntityType type;
+                System.out.println(String.format("Command %s received from server", command.name()));
+                switch (command) {
+                    case RECEIVE_LIST_OF_ENTITIES:
+                        List<? extends AbstractEntity> entities = (List<? extends AbstractEntity>) ois.readObject();
+                        if (entities != null) {
+                            if (entities.isEmpty()) {
+                                listOfEntitiesListener.onDataReceive(EntityType.FAKE, new LinkedList<>());
+                            } else {
+                                type = EntityType.fromEntity(entities.get(0));
+                                Map<String, AbstractEntity> cache = getCacheByType(type);
+                                entities.stream().forEach((entity) -> {
+                                    cache.put(entity.getId(), entity);
+                                });
+                                listOfEntitiesListener.onDataReceive(type, new LinkedList<>(cache.values()));
+                            }
+                        }
+                        break;
+                    case RECEIVE_MESSAGE:
+                        type = (EntityType) ois.readObject();
+                        messageListener.onMessageReceive(type);
+                        break;
+                    case RECEIVE_ENTITY:
+                        AbstractEntity entity = (AbstractEntity) ois.readObject();
+                        type = EntityType.fromEntity(entity);
+                        entityListener.onEntityReceive(type, entity);
+                        break;
+                    case RECEIVE_ENTITY_LOCKED:
+                        entityListener.onEntityReceive(EntityType.FAKE, null);
+                        break;
                 }
-            } catch (IOException | ClassNotFoundException ex) {
+            } catch (SocketException e) {
 
+            } catch (IOException | ClassNotFoundException ex) {
+                System.out.println("Что-то пошло не так");
+                ex.printStackTrace();
             }
         }
     }
 
-    public void setDataListener(DataListener listener) {
-        dataListener = listener;
+    public void setDataListener(ListOfEntitiesListener listener) {
+        listOfEntitiesListener = listener;
     }
 
     public void requestEntities(EntityType type) throws IOException {
         Map<String, AbstractEntity> cache = getCacheByType(type);
         if (cache.isEmpty()) {
-            try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
-                oos.writeObject(ServerCommand.REQUEST_ENTITIES);
-                oos.writeObject(type);
-                oos.flush();
-            }
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(ServerCommand.REQUEST_ENTITIES);
+            oos.writeObject(type);
+            oos.flush();
         } else {
-            dataListener.onDataReceive(type, new LinkedList<>(cache.values()));
+            listOfEntitiesListener.onDataReceive(type, new LinkedList<>(cache.values()));
         }
     }
 

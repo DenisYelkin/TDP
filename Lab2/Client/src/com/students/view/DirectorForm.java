@@ -6,7 +6,7 @@
 package com.students.view;
 
 import com.students.controller.Controller;
-import com.students.controller.DataListener;
+import com.students.controller.ListOfEntitiesListener;
 import com.students.entity.AbstractEntity;
 import com.students.entity.Director;
 import com.students.entity.EntityType;
@@ -41,7 +41,7 @@ public class DirectorForm extends javax.swing.JFrame {
      */
     public DirectorForm(Controller controller, Director director) {
         this.controller = controller;
-        controller.setDataListener(new DataListener() {
+        controller.setDataListener(new ListOfEntitiesListener() {
 
             @Override
             public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
@@ -90,8 +90,7 @@ public class DirectorForm extends javax.swing.JFrame {
         try {
             controller.requestEntities(EntityType.MOVIE);
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-            formWindowClosing(null);
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
             this.setVisible(false);
             this.dispose();
         }
@@ -124,11 +123,6 @@ public class DirectorForm extends javax.swing.JFrame {
         saveButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent evt) {
-                formWindowClosing(evt);
-            }
-        });
 
         cancelButton.setText("Cancel");
         cancelButton.addActionListener(new java.awt.event.ActionListener() {
@@ -262,6 +256,16 @@ public class DirectorForm extends javax.swing.JFrame {
         dispose();
     }//GEN-LAST:event_cancelButtonActionPerformed
 
+    @Override
+    public void dispose() {
+        super.dispose(); 
+        try {
+            controller.finishEditing(director);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+        }
+    }  
+    
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
         String alertMessage = "В данные поля были введены некорректные данные:\n";
 
@@ -317,14 +321,6 @@ public class DirectorForm extends javax.swing.JFrame {
             fillOtherLists();
         }
     }//GEN-LAST:event_movieButtonDeleteActionPerformed
-
-    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        try {
-            controller.finishEditing(director);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
-        }
-    }//GEN-LAST:event_formWindowClosing
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

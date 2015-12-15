@@ -7,12 +7,11 @@ package com.students.controller;
 
 import com.students.entity.AbstractEntity;
 import com.students.entity.EntityType;
-import java.util.List;
 
 /**
  *
  * @author pushi_000
  */
-public abstract class DataListener {
-    public abstract void onDataReceive(EntityType type, List<? extends AbstractEntity> entities);
+public abstract class EntityListener {
+    public abstract void onEntityReceive(EntityType type, AbstractEntity entity);
 }
