@@ -6,6 +6,8 @@
 package com.students.view;
 
 import com.students.controller.Controller;
+import com.students.controller.DataListener;
+import com.students.entity.AbstractEntity;
 import com.students.entity.Director;
 import com.students.entity.EntityType;
 import com.students.entity.Movie;
@@ -23,15 +25,15 @@ import javax.swing.JOptionPane;
  * @author pushi_000
  */
 public class DirectorForm extends javax.swing.JFrame {
-    
+
     private Director director;
-    
+
     private boolean newDirector = false;
-    
+
     private final Controller controller;
-    
+
     private final List<Movie> currentMovies = new LinkedList<>();
-    
+
     private List<Movie> otherMovies;
 
     /**
@@ -39,6 +41,19 @@ public class DirectorForm extends javax.swing.JFrame {
      */
     public DirectorForm(Controller controller, Director director) {
         this.controller = controller;
+        controller.setDataListener(new DataListener() {
+
+            @Override
+            public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
+                if (type == EntityType.MOVIE) {
+                    otherMovies = (List<Movie>) entities;
+                    otherMovies.removeAll(currentMovies);
+                    DefaultListModel otherMovieListModel = new DefaultListModel();
+                    otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
+                    otherMoviesList.setModel(otherMovieListModel);
+                }
+            }
+        });
         this.director = director;
         initComponents();
         if (director != null) {
@@ -49,12 +64,12 @@ public class DirectorForm extends javax.swing.JFrame {
         }
         fillOtherLists();
     }
-    
+
     private void fillForm() {
         nameTextField.setText(director.getName());
         birthDateTextField.setText(director.getBirthDate().toString());
         birthCountryTextField.setText(director.getBirthCountry());
-        
+
         DefaultListModel currentMoviesListModel = new DefaultListModel();
         for (Movie movie : director.getMovies()) {
             currentMovies.add(movie);
@@ -62,7 +77,7 @@ public class DirectorForm extends javax.swing.JFrame {
         }
         currentMoviesList.setModel(currentMoviesListModel);
     }
-    
+
     private void fillCurrentLists() {
         DefaultListModel currentMoviesListModel = new DefaultListModel();
         for (Movie movie : currentMovies) {
@@ -70,15 +85,11 @@ public class DirectorForm extends javax.swing.JFrame {
         }
         currentMoviesList.setModel(currentMoviesListModel);
     }
-    
+
     private void fillOtherLists() {
         try {
-            otherMovies = new LinkedList<>((List<Movie>) controller.getEntities(EntityType.MOVIE));
-            otherMovies.removeAll(currentMovies);
-            DefaultListModel otherMovieListModel = new DefaultListModel();
-            otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
-            otherMoviesList.setModel(otherMovieListModel);
-        } catch (IOException | ClassNotFoundException e) {
+            controller.requestEntities(EntityType.MOVIE);
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
             formWindowClosing(null);
             this.setVisible(false);
@@ -253,7 +264,7 @@ public class DirectorForm extends javax.swing.JFrame {
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
         String alertMessage = "В данные поля были введены некорректные данные:\n";
-        
+
         String date = birthDateTextField.getText();
         LocalDate ldt = null;
         try {
@@ -262,14 +273,14 @@ public class DirectorForm extends javax.swing.JFrame {
             alertMessage += "Birth Date\n";
             System.out.println(e.getMessage());
         }
-        
+
         if (ldt != null) {
-            
+
             director.setName(nameTextField.getText());
             director.setBirthDate(ldt);
             director.setBirthCountry(birthCountryTextField.getText());
             director.setMovies(currentMovies);
-            
+
             try {
                 if (newDirector) {
                     controller.addEntity(director);

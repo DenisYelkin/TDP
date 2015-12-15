@@ -2,6 +2,12 @@ package com.students.model;
 
 import com.students.entity.*;
 import com.students.entity.Character;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import java.io.Serializable;
 import java.util.LinkedList;
@@ -216,5 +222,16 @@ public class Model implements Serializable {
         }
     }
 
-    
+    public void saveData(File file) throws IOException {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+            oos.writeObject(this);
+            oos.flush();
+        }
+    }
+
+    public static Model loadData(File file) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            return (Model) ois.readObject();
+        }
+    }
 }

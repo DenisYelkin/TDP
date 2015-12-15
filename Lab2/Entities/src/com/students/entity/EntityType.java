@@ -37,4 +37,17 @@ public enum EntityType implements Serializable {
         }
         return null;
     }
+    
+    public static EntityType fromEntity(AbstractEntity entity) {
+        if (entity instanceof Movie) {
+            return MOVIE;
+        } else if (entity instanceof Actor) {
+            return ACTOR;
+        } else if (entity instanceof Director) {
+            return DIRECTOR;
+        } else if (entity instanceof Character) {
+            return CHARACTER;
+        }
+        return null;
+    }
 }

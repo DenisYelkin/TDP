@@ -1,17 +1,19 @@
 package com.students.controller;
 
+import com.google.common.collect.Maps;
+import com.students.commands.ClientCommand;
 import com.students.commands.ServerCommand;
 import com.students.entity.*;
-import com.students.entity.Character;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.LinkedList;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Controller {
 
@@ -19,9 +21,19 @@ public class Controller {
     private static final int PORT = 10500;
 
     private final Socket socket;
+    private final Map<String, AbstractEntity> moviesCache = Maps.newHashMap();
+    private final Map<String, AbstractEntity> actorsCache = Maps.newHashMap();
+    private final Map<String, AbstractEntity> charactersCache = Maps.newHashMap();
+    private final Map<String, AbstractEntity> directorsCache = Maps.newHashMap();
+    private final ExecutorService pool;
+    private DataListener dataListener;
+    private final MessageListener messageListener;
 
-    public Controller() throws IOException {
+    public Controller(MessageListener messageListener) throws IOException {
+        this.messageListener = messageListener;
         socket = new Socket(HOST, PORT);
+        pool = Executors.newSingleThreadExecutor();
+        pool.submit(() -> receive());
     }
 
     private abstract class Instruction {
@@ -46,13 +58,15 @@ public class Controller {
             }
         }.execute();
     }
-    
+
     public void addEntity(AbstractEntity entity) throws IOException {
         instructionForEntity(entity, ServerCommand.ADD);
+        getCacheByType(EntityType.fromEntity(entity)).put(entity.getId(), entity);
     }
 
     public void editEntity(AbstractEntity entity) throws IOException {
         instructionForEntity(entity, ServerCommand.APPLY_EDITING);
+        getCacheByType(EntityType.fromEntity(entity)).put(entity.getId(), entity);
     }
 
     public void startEditing(AbstractEntity entity) throws IOException {
@@ -73,28 +87,69 @@ public class Controller {
                 oos.writeObject(id);
             }
         }.execute();
+        getCacheByType(type).remove(id);
     }
-    
-    public List<? extends AbstractEntity> getEntities(EntityType type) throws IOException, ClassNotFoundException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
-            oos.writeObject(ServerCommand.GET_ENTITIES);
-            oos.writeObject(type);
-            oos.flush();
-            return (List<? extends AbstractEntity>) ois.readObject();
+
+    private Map<String, AbstractEntity> getCacheByType(EntityType type) {
+        switch (type) {
+            case MOVIE:
+                return moviesCache;
+            case ACTOR:
+                return actorsCache;
+            case CHARACTER:
+                return charactersCache;
+            case DIRECTOR:
+                return directorsCache;
+            default:
+                return null;
         }
     }
 
-    public void saveData(File file) throws IOException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
-            oos.writeObject(model);
-            oos.flush();
+    public void receive() {
+        while (true) {
+            try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+                ClientCommand command = (ClientCommand) ois.readObject();
+                if (command == ClientCommand.RECEIVE_DATA) {
+                    List<? extends AbstractEntity> entities = (List<? extends AbstractEntity>) ois.readObject();
+                    if (entities != null && !entities.isEmpty()) {
+                        EntityType type = EntityType.fromEntity(entities.get(0));
+                        Map<String, AbstractEntity> cache = getCacheByType(type);
+                        entities.stream().forEach((entity) -> {
+                            cache.put(entity.getId(), entity);
+                        });
+                        dataListener.onDataReceive(type, new LinkedList<>(cache.values()));
+                    }
+                } else if (command == ClientCommand.RECEIVE_MESSAGE) {
+                    EntityType type = (EntityType) ois.readObject();
+                    messageListener.onMessageReceive(type);
+                }
+            } catch (IOException | ClassNotFoundException ex) {
+
+            }
         }
     }
 
-    public void loadData(File file) throws IOException, ClassNotFoundException {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-            model = (Model) ois.readObject();
+    public void setDataListener(DataListener listener) {
+        dataListener = listener;
+    }
+
+    public void requestEntities(EntityType type) throws IOException {
+        Map<String, AbstractEntity> cache = getCacheByType(type);
+        if (cache.isEmpty()) {
+            try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
+                oos.writeObject(ServerCommand.REQUEST_ENTITIES);
+                oos.writeObject(type);
+                oos.flush();
+            }
+        } else {
+            dataListener.onDataReceive(type, new LinkedList<>(cache.values()));
         }
+    }
+
+    public void refreshData() {
+        moviesCache.clear();
+        actorsCache.clear();
+        directorsCache.clear();
+        charactersCache.clear();
     }
 }

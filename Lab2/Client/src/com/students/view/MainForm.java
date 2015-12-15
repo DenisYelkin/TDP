@@ -29,7 +29,12 @@
  */
 package com.students.view;
 
+import com.google.common.collect.Maps;
+import com.students.commands.ClientCommand;
 import com.students.controller.Controller;
+import com.students.controller.DataListener;
+import com.students.controller.MessageListener;
+import com.students.entity.AbstractEntity;
 import com.students.entity.Actor;
 import com.students.entity.Director;
 import com.students.entity.EntityType;
@@ -37,9 +42,13 @@ import com.students.entity.Movie;
 import com.students.entity.Character;
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -47,16 +56,41 @@ import javax.swing.JOptionPane;
 public class MainForm extends javax.swing.JFrame {
 
     private Controller controller;
+    private final DataListener dataListener = new DataListener() {
 
-    /**
-     * Creates new form Antenna
-     */
+        @Override
+        public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
+            switch (type) {
+                case MOVIE:
+                    entitiesTable.setModel(TableModels.getMovieTableModel((List<Movie>) entities));
+                    break;
+                case CHARACTER:
+                    entitiesTable.setModel(TableModels.getCharacterTableModel((List<Character>) entities));
+                    break;
+                case DIRECTOR:
+                    entitiesTable.setModel(TableModels.getDirectorTableModel((List<Director>) entities));
+                    break;
+                case ACTOR:
+                    entitiesTable.setModel(TableModels.getActorTableModel((List<Actor>) entities));
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
     public MainForm() {
         try {
-            controller = new Controller();
+            final MainForm thisMainForm = this;
+            controller = new Controller(new MessageListener() {
+
+                @Override
+                public void onMessageReceive(EntityType type) {
+                    JOptionPane.showMessageDialog(thisMainForm, "Кто-то внес изменения в: " + type.getName() + "\nВам следует нажать Refresh");
+                }
+            });
             initComponents();
-            entitiesTable.setModel(TableModels.getMovieTableModel((List<Movie>) controller.getEntities(EntityType.MOVIE)));
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
             System.exit(1);
         }
@@ -70,14 +104,13 @@ public class MainForm extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        saveButton = new javax.swing.JButton();
-        loadButton = new javax.swing.JButton();
         entitiesComboBox = new javax.swing.JComboBox();
         jScrollPane1 = new javax.swing.JScrollPane();
         entitiesTable = new javax.swing.JTable();
         deleteButton = new javax.swing.JButton();
         editButton = new javax.swing.JButton();
         addButton = new javax.swing.JButton();
+        refreshButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Movies");
@@ -86,20 +119,6 @@ public class MainForm extends javax.swing.JFrame {
                 formWindowGainedFocus(evt);
             }
             public void windowLostFocus(java.awt.event.WindowEvent evt) {
-            }
-        });
-
-        saveButton.setText("Save");
-        saveButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                saveButtonActionPerformed(evt);
-            }
-        });
-
-        loadButton.setText("Load");
-        loadButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                loadButtonActionPerformed(evt);
             }
         });
 
@@ -133,6 +152,13 @@ public class MainForm extends javax.swing.JFrame {
             }
         });
 
+        refreshButton.setText("Refresh");
+        refreshButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                refreshButtonActionPerformed(evt);
+            }
+        });
+
         org.jdesktop.layout.GroupLayout layout = new org.jdesktop.layout.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -142,9 +168,7 @@ public class MainForm extends javax.swing.JFrame {
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
                     .add(jScrollPane1, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 947, Short.MAX_VALUE)
                     .add(layout.createSequentialGroup()
-                        .add(saveButton)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.UNRELATED)
-                        .add(loadButton)
+                        .add(refreshButton, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 122, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.UNRELATED)
                         .add(entitiesComboBox, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -160,12 +184,11 @@ public class MainForm extends javax.swing.JFrame {
             .add(layout.createSequentialGroup()
                 .addContainerGap()
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
-                    .add(saveButton)
-                    .add(loadButton)
                     .add(entitiesComboBox, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                     .add(deleteButton)
                     .add(editButton)
-                    .add(addButton))
+                    .add(addButton)
+                    .add(refreshButton))
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.UNRELATED)
                 .add(jScrollPane1, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 666, Short.MAX_VALUE)
                 .addContainerGap())
@@ -174,41 +197,12 @@ public class MainForm extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
-        JFileChooser fileChooser = new JFileChooser();
-        int returnValue = fileChooser.showOpenDialog(this);
-        if (returnValue == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-            try {
-                controller.saveData(selectedFile);
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Не удалось сохранить данные в файл!!!!!!111");
-            }
-        }
-
-    }//GEN-LAST:event_saveButtonActionPerformed
-
     private void entitiesComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_entitiesComboBoxActionPerformed
         String selectedItem = entitiesComboBox.getSelectedItem().toString();
         EntityType type = EntityType.of(selectedItem);
         try {
-            switch (type) {
-                case MOVIE:
-                    entitiesTable.setModel(TableModels.getMovieTableModel((List<Movie>) controller.getEntities(type)));
-                    break;
-                case CHARACTER:
-                    entitiesTable.setModel(TableModels.getCharacterTableModel((List<Character>) controller.getEntities(type)));
-                    break;
-                case DIRECTOR:
-                    entitiesTable.setModel(TableModels.getDirectorTableModel((List<Director>) controller.getEntities(type)));
-                    break;
-                case ACTOR:
-                    entitiesTable.setModel(TableModels.getActorTableModel((List<Actor>) controller.getEntities(type)));
-                    break;
-                default:
-                    break;
-            }
-        } catch (IOException | ClassNotFoundException e) {
+            controller.requestEntities(type);
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
         }
     }//GEN-LAST:event_entitiesComboBoxActionPerformed
@@ -291,6 +285,7 @@ public class MainForm extends javax.swing.JFrame {
     }//GEN-LAST:event_editButtonActionPerformed
 
     private void formWindowGainedFocus(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowGainedFocus
+        controller.setDataListener(dataListener);
         entitiesComboBoxActionPerformed(null);
     }//GEN-LAST:event_formWindowGainedFocus
 
@@ -310,18 +305,10 @@ public class MainForm extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_deleteButtonActionPerformed
 
-    private void loadButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadButtonActionPerformed
-        JFileChooser fileChooser = new JFileChooser();
-        int returnValue = fileChooser.showOpenDialog(this);
-        if (returnValue == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-            try {
-                controller.loadData(selectedFile);
-            } catch (IOException | ClassNotFoundException | ClassCastException ex) {
-                JOptionPane.showMessageDialog(this, "Не удалось загрузить данные из файла!!!!!!111");
-            }
-        }
-    }//GEN-LAST:event_loadButtonActionPerformed
+    private void refreshButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshButtonActionPerformed
+        controller.refreshData();
+        entitiesComboBoxActionPerformed(evt);
+    }//GEN-LAST:event_refreshButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -369,8 +356,7 @@ public class MainForm extends javax.swing.JFrame {
     private javax.swing.JComboBox entitiesComboBox;
     private javax.swing.JTable entitiesTable;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JButton loadButton;
-    private javax.swing.JButton saveButton;
+    private javax.swing.JButton refreshButton;
     // End of variables declaration//GEN-END:variables
 
 }

@@ -6,6 +6,8 @@
 package com.students.view;
 
 import com.students.controller.Controller;
+import com.students.controller.DataListener;
+import com.students.entity.AbstractEntity;
 import com.students.entity.Character;
 import com.students.entity.Director;
 import com.students.entity.EntityType;
@@ -24,23 +26,42 @@ import javax.swing.JOptionPane;
  * @author pushi_000
  */
 public class MovieForm extends javax.swing.JFrame {
-    
+
     private Movie movie;
-    
+
     private boolean newMovie = false;
-    
+
     private final Controller controller;
-    
+
     private final List<Character> currentCharacters = new LinkedList<>();
-    
+
     private List<Character> otherCharacters;
-    
+
     private final List<Director> currentDirectors = new LinkedList<>();
-    
+
     private List<Director> otherDirectors;
-    
+
     public MovieForm(Controller controller, Movie movie) {
         this.controller = controller;
+        controller.setDataListener(new DataListener() {
+
+            @Override
+            public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
+                if (type == EntityType.CHARACTER) {
+                    otherCharacters = (List<Character>) entities;
+                    otherCharacters.removeAll(currentCharacters);
+                    DefaultListModel otherCharacterListModel = new DefaultListModel();
+                    otherCharacters.stream().forEach((character) -> otherCharacterListModel.addElement(character.getName()));
+                    otherCharactersList.setModel(otherCharacterListModel);
+                } else if (type == EntityType.DIRECTOR) {
+                    otherDirectors = (List<Director>) entities;
+                    otherDirectors.removeAll(currentDirectors);
+                    DefaultListModel otherDirectorsListModel = new DefaultListModel();
+                    otherDirectors.stream().forEach((director) -> otherDirectorsListModel.addElement(director.getName()));
+                    otherDirectorsList.setModel(otherDirectorsListModel);
+                }
+            }
+        });
         this.movie = movie;
         initComponents();
         if (movie != null) {
@@ -51,7 +72,7 @@ public class MovieForm extends javax.swing.JFrame {
         }
         fillOtherLists();
     }
-    
+
     private void fillForm() {
         nameTextField.setText(movie.getName());
         releaseDateTextField.setText(movie.getReleaseDate().toString());
@@ -60,14 +81,14 @@ public class MovieForm extends javax.swing.JFrame {
         descriptionTextField.setText(movie.getDescription());
         genresTextField.setText(movie.getGenres());
         countriesTestField.setText(movie.getCountries());
-        
+
         DefaultListModel currentCharacterListModel = new DefaultListModel();
         for (Character character : movie.getCharacters()) {
             currentCharacters.add(character);
             currentCharacterListModel.addElement(character.getName());
         }
         currentCharactersList.setModel(currentCharacterListModel);
-        
+
         DefaultListModel currentDirectorsListModel = new DefaultListModel();
         for (Director director : movie.getDirectors()) {
             currentDirectors.add(director);
@@ -75,35 +96,26 @@ public class MovieForm extends javax.swing.JFrame {
         }
         currentDirectorsList.setModel(currentDirectorsListModel);
     }
-    
+
     private void fillCurrentLists() {
         DefaultListModel currentCharacterListModel = new DefaultListModel();
         for (Character character : currentCharacters) {
             currentCharacterListModel.addElement(character.getName());
         }
         currentCharactersList.setModel(currentCharacterListModel);
-        
+
         DefaultListModel currentDirectorsListModel = new DefaultListModel();
         for (Director director : currentDirectors) {
             currentDirectorsListModel.addElement(director.getName());
         }
         currentDirectorsList.setModel(currentDirectorsListModel);
     }
-    
+
     private void fillOtherLists() {
         try {
-            otherCharacters = new LinkedList<>((List<Character>) controller.getEntities(EntityType.CHARACTER));
-            otherCharacters.removeAll(currentCharacters);
-            DefaultListModel otherCharacterListModel = new DefaultListModel();
-            otherCharacters.stream().forEach((character) -> otherCharacterListModel.addElement(character.getName()));
-            otherCharactersList.setModel(otherCharacterListModel);
-            
-            otherDirectors = new LinkedList<>((List<Director>) controller.getEntities(EntityType.DIRECTOR));
-            otherDirectors.removeAll(currentDirectors);
-            DefaultListModel otherDirectorsListModel = new DefaultListModel();
-            otherDirectors.stream().forEach((director) -> otherDirectorsListModel.addElement(director.getName()));
-            otherDirectorsList.setModel(otherDirectorsListModel);
-        } catch (IOException | ClassNotFoundException e) {
+            controller.requestEntities(EntityType.CHARACTER);
+            controller.requestEntities(EntityType.DIRECTOR);
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
             formWindowClosing(null);
             this.setVisible(false);
@@ -391,7 +403,7 @@ public class MovieForm extends javax.swing.JFrame {
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
         String alertMessage = "В данные поля были введены некорректные данные:\n";
-        
+
         String date = releaseDateTextField.getText();
         LocalDate ldt = null;
         try {
@@ -400,7 +412,7 @@ public class MovieForm extends javax.swing.JFrame {
             alertMessage += "Release Date\n";
             System.out.println(e.getMessage());
         }
-        
+
         String durationString = durationTextField.getText();
         Integer duration = null;
         try {
@@ -408,7 +420,7 @@ public class MovieForm extends javax.swing.JFrame {
         } catch (NumberFormatException e) {
             alertMessage += "Duration\n";
         }
-        
+
         String budgetString = budgetTextField.getText();
         Integer budget = null;
         try {
@@ -416,19 +428,19 @@ public class MovieForm extends javax.swing.JFrame {
         } catch (NumberFormatException e) {
             alertMessage += "Budget\n";
         }
-        
+
         if (ldt != null && duration != null && budget != null) {
             movie.setName(nameTextField.getText());
             movie.setBudget(budget);
             movie.setDescription(descriptionTextField.getText());
             movie.setDuration(duration);
             movie.setReleaseDate(ldt);
-            
+
             movie.setCharacters(currentCharacters);
             movie.setCountries(countriesTestField.getText());
             movie.setDirectors(currentDirectors);
             movie.setGenres(genresTextField.getText());
-            
+
             try {
                 if (newMovie) {
                     controller.addEntity(movie);

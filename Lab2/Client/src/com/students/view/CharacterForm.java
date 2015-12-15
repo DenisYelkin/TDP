@@ -6,6 +6,8 @@
 package com.students.view;
 
 import com.students.controller.Controller;
+import com.students.controller.DataListener;
+import com.students.entity.AbstractEntity;
 import com.students.entity.Actor;
 import com.students.entity.Movie;
 import com.students.entity.Character;
@@ -38,6 +40,25 @@ public class CharacterForm extends javax.swing.JFrame {
 
     public CharacterForm(Controller controller, Character character) {
         this.controller = controller;
+        controller.setDataListener(new DataListener() {
+
+            @Override
+            public void onDataReceive(EntityType type, List<? extends AbstractEntity> entities) {
+                if (type == EntityType.MOVIE) {
+                    otherMovies = (List<Movie>) entities;
+                    otherMovies.remove(currentMovie);
+                    DefaultListModel otherMovieListModel = new DefaultListModel();
+                    otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
+                    otherMoviesList.setModel(otherMovieListModel);
+                } else if (type == EntityType.ACTOR) {
+                    otherActors = (List<Actor>) entities;
+                    otherActors.remove(currentActor);
+                    DefaultListModel otherActorsListModel = new DefaultListModel();
+                    otherActors.stream().forEach((actor) -> otherActorsListModel.addElement(actor.getName()));
+                    otherActorsList.setModel(otherActorsListModel);
+                }
+            }
+        });
         this.character = character;
         initComponents();
         if (character != null) {
@@ -58,23 +79,13 @@ public class CharacterForm extends javax.swing.JFrame {
             currentActor = character.getActor();
             currentMovie = character.getMovie();
         }
-
     }
 
     private void fillOtherLists() {
         try {
-            otherMovies = new LinkedList<>((List<Movie>) controller.getEntities(EntityType.MOVIE));
-            otherMovies.remove(currentMovie);
-            DefaultListModel otherMovieListModel = new DefaultListModel();
-            otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
-            otherMoviesList.setModel(otherMovieListModel);
-
-            otherActors = new LinkedList<>((List<Actor>) controller.getEntities(EntityType.ACTOR));
-            otherActors.remove(currentActor);
-            DefaultListModel otherActorsListModel = new DefaultListModel();
-            otherActors.stream().forEach((actor) -> otherActorsListModel.addElement(actor.getName()));
-            otherActorsList.setModel(otherActorsListModel);
-        } catch (IOException | ClassNotFoundException e) {
+            controller.requestEntities(EntityType.MOVIE);
+            controller.requestEntities(EntityType.ACTOR);
+        } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
             formWindowClosing(null);
             this.setVisible(false);

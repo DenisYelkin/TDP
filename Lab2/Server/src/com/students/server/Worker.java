@@ -64,15 +64,11 @@ public class Worker implements Runnable {
                     type = model.editEntity(entity);
                     Server.publish(socket, type);
                     break;
-                case GET_ENTITIES:
+                case REQUEST_ENTITIES:
                     type = (EntityType) reader.readObject();
                     writer.writeObject(model.getEntities(type));
                     break;
                 case GET_BY_ID:
-                    break;
-                case SAVE:
-                    break;
-                case LOAD:
                     break;
                 default:
                     throw new IllegalArgumentException("Команда не опознана");
