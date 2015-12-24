@@ -26,6 +26,8 @@ import javax.xml.bind.annotation.XmlSeeAlso;
 @XmlSeeAlso({Actor.class, Персонаж.class, Director.class, Movie.class})
 public class ServerTransferObject<T extends BaseEntity> {
 
+    public static final String PATH_TO_SCHEMA = "../Entities/src/com/students/util/resources/serverTransferObject.xsd";
+    
     @XmlElement(required = true)
     private ClientCommand command;
     
@@ -48,11 +50,16 @@ public class ServerTransferObject<T extends BaseEntity> {
     }
 
     @XmlElementWrapper(name = "entities")
-    @XmlElement(name = "entity")
+    @XmlElement(name = "entity", required = true)
     public List<T> getEntities() {
         return entities;
     }
 
+    public void setEntities(List<T> entities) {
+        this.entities = entities;
+    }
+
+    
     public EntityType getEntityType() {
         return entityType;
     }

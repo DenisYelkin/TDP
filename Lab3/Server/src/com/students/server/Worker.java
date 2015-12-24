@@ -45,11 +45,12 @@ public class Worker implements Runnable {
             while (true) {
                 InputStream reader = socket.getInputStream();
                 OutputStream writer;
-                ClientTransferObject transferObject = XMLUtils.read(ClientTransferObject.class, reader, null);
+                ClientTransferObject transferObject = XMLUtils.read(ClientTransferObject.class, reader, ClientTransferObject.PATH_TO_SCHEMA);
                 ServerCommand command = transferObject.getCommand();
                 EntityType type = transferObject.getEntityType();
                 BaseEntity entity = transferObject.getEntity();
                 System.out.println(String.format("Command %s received from %d", command.name(), currentNum));
+
                 synchronized (socket) {
                     switch (command) {
                         case ADD:
@@ -73,15 +74,18 @@ public class Worker implements Runnable {
                         case REQUEST_ENTITIES:
                             writer = socket.getOutputStream();
                             XMLUtils.write(writer, new ServerTransferObject(ClientCommand.RECEIVE_LIST_OF_ENTITIES, model.getEntities(type), type));
+                            XMLUtils.write(System.out, new ServerTransferObject(ClientCommand.RECEIVE_LIST_OF_ENTITIES, model.getEntities(type), type));
                             writer.flush();
                             break;
                         case REQUEST_ENTITY_BY_ID:
                             writer = socket.getOutputStream();
-                            if (Server.isEntityLocked(entity.getId())) {                                
+                            if (Server.isEntityLocked(entity.getId())) {
                                 XMLUtils.write(writer, new ServerTransferObject(ClientCommand.RECEIVE_ENTITY_LOCKED, null, null));
+                                XMLUtils.write(System.out, new ServerTransferObject(ClientCommand.RECEIVE_ENTITY_LOCKED, null, null));
                             } else {
                                 List singletonList = Collections.singletonList(model.getEntityById(type, entity.getId()));
                                 XMLUtils.write(writer, new ServerTransferObject(ClientCommand.RECEIVE_ENTITY, singletonList, type));
+                                XMLUtils.write(System.out, new ServerTransferObject(ClientCommand.RECEIVE_ENTITY, singletonList, type));
                             }
                             writer.flush();
                             break;

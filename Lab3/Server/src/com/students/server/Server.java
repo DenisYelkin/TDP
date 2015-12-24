@@ -115,7 +115,6 @@ public class Server {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-
         System.out.println("Server started");
         Timer timer = new Timer();
         SaveDataTimerTask timerTask = new SaveDataTimerTask();
@@ -132,7 +131,7 @@ public class Server {
         } catch (IOException ex) {
             System.out.println("Что то пошло не так: " + ex.getMessage());
             ex.printStackTrace();
-        }     
+        }                
     }
 
     private static class SaveDataTimerTask extends TimerTask {

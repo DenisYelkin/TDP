@@ -66,12 +66,12 @@ public class Controller {
     }
 
     private void instructionForEntity(BaseEntity entity, ServerCommand command) throws IOException, JAXBException {
-        System.out.println(String.format("instructonForEntity entity.class = %s; command = %s", entity.getClass(), command.name()));
         new Instruction() {
 
             @Override
             protected void perform(OutputStream os) throws IOException, JAXBException {
                 XMLUtils.write(os, new ClientTransferObject(command, entity, EntityType.fromEntity(entity)));
+                XMLUtils.write(System.out, new ClientTransferObject(command, entity, EntityType.fromEntity(entity)));
             }
         }.execute();
     }
@@ -146,7 +146,7 @@ public class Controller {
         while (!socket.isClosed()) {
             try {
                 InputStream is = socket.getInputStream();
-                ServerTransferObject object = XMLUtils.read(ServerTransferObject.class, is, null);
+                ServerTransferObject object = XMLUtils.read(ServerTransferObject.class, is, ServerTransferObject.PATH_TO_SCHEMA);
                 ClientCommand command = object.getCommand();
                 EntityType type = object.getEntityType();
                 System.out.println(String.format("Command %s received from server", command.name()));
@@ -180,7 +180,6 @@ public class Controller {
                         break;
                 }
             } catch (SocketException e) {
-
             } catch (IOException | SAXException | JAXBException ex) {
                 System.out.println("Что-то пошло не так");
                 ex.printStackTrace();

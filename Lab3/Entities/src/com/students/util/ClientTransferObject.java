@@ -24,9 +24,11 @@ import javax.xml.bind.annotation.XmlSeeAlso;
 @XmlSeeAlso({Actor.class, Персонаж.class, Director.class, Movie.class})
 public class ClientTransferObject<T extends BaseEntity> {
 
+    public static final String PATH_TO_SCHEMA = "../Entities/src/com/students/util/resources/clientTransferObject.xsd";
+    
     @XmlElement(required = true)
     private ServerCommand command;
-
+    
     private T entity;
 
     @XmlElement(required = true)
@@ -45,6 +47,11 @@ public class ClientTransferObject<T extends BaseEntity> {
         return command;
     }
 
+    public void setEntity(T entity) {
+        this.entity = entity;
+    }       
+    
+    @XmlElement(required = true)
     public T getEntity() {
         return entity;
     }
