@@ -96,9 +96,9 @@ public class Worker implements Runnable {
                 // writer.flush();
 
             }
-        } catch (IOException | IllegalArgumentException | JAXBException | SAXException ex) {
+        } catch (Exception ex) {
             try {
-                // client is gone
+                // client is gone                
                 socket.close();
             } catch (IOException ex1) {
                 System.out.println("Что то пошло не так: " + ex.getMessage());

@@ -43,9 +43,9 @@ public class XMLUtils {
     public static <T> T read(Class<T> clazz, InputStream is, String pathToSchema) throws SAXException, JAXBException, IOException {
         JAXBContext jc = JAXBContext.newInstance(clazz);
         Unmarshaller um = jc.createUnmarshaller();
-      //  SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-       // Schema schema = schemaFactory.newSchema(new File(pathToSchema));
-       // um.setSchema(schema);
+        SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        Schema schema = schemaFactory.newSchema(new File(pathToSchema));
+        um.setSchema(schema);
         DataInputStream dis = new DataInputStream(is);
         String s = dis.readUTF();
         System.out.println("read: " + s);

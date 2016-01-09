@@ -1,11 +1,11 @@
 package com.students.model;
 
 import com.google.common.collect.Lists;
+import com.students.cache.EntitiesCache;
 import com.students.entity.*;
 import com.students.entity.Персонаж;
 
 import java.io.Serializable;
-import java.sql.Array;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.DriverManager;
@@ -17,13 +17,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-public class Model implements Serializable {
+public class Model implements Serializable { 
 
     private Connection connection;
+    private EntitiesCache cache;
 
     public Model() {
         try {
+            cache = new EntitiesCache();
             Class.forName("oracle.jdbc.driver.OracleDriver");
             connection = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:XE", "system", "123");
         } catch (SQLException | ClassNotFoundException ex) {
@@ -48,6 +51,7 @@ public class Model implements Serializable {
             updStatement.setDate(3, new Date(actor.getBirthDate().toEpochDay()));
             updStatement.setString(4, actor.getBirthCountry());
             updStatement.executeQuery();
+            cache.put(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -62,6 +66,7 @@ public class Model implements Serializable {
             updStatement.setString(3, actor.getBirthCountry());
             updStatement.setString(4, actor.getId());
             updStatement.executeQuery();
+            cache.put(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -75,6 +80,7 @@ public class Model implements Serializable {
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM actor WHERE id = ?")) {
             updStatement.setString(1, actor.getId());
             updStatement.executeQuery();
+            cache.remove(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -94,8 +100,12 @@ public class Model implements Serializable {
         return result;
     }
 
-    private List<Actor> getActors() {
-        List<Actor> result = new ArrayList<>();
+    private List<BaseEntity> getActors() {
+        if (cache.hasValuesForType(EntityType.ACTOR)) {
+            return Lists.newArrayList(cache.getValuesForType(EntityType.ACTOR));
+        }
+        
+        List<BaseEntity> result = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("SELECT * FROM actor")) {
             while (rs.next()) {
@@ -111,6 +121,7 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
+        cache.putAll(result);
         return result;
     }
 
@@ -130,6 +141,8 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
+            cache.put(director);
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -156,6 +169,8 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
+            cache.put(director);
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -169,14 +184,19 @@ public class Model implements Serializable {
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM director WHERE id = ?")) {
             updStatement.setString(1, director.getId());
             updStatement.executeQuery();
+            cache.remove(director);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private List<Director> getDirectors() {
-        List<Director> result = new ArrayList<>();
+    private List<BaseEntity> getDirectors() {
+        if (cache.hasValuesForType(EntityType.DIRECTOR)) {
+            return Lists.newArrayList(cache.getValuesForType(EntityType.DIRECTOR));
+        }
+        
+        List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("SELECT * FROM director")) {
@@ -193,6 +213,7 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
+        cache.putAll(result);
         return result;
     }
 
@@ -224,6 +245,7 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -257,8 +279,8 @@ public class Model implements Serializable {
             }
             PreparedStatement ps = connection.prepareStatement("DELETE FROM character WHERE movie_id = ? AND id NOT IN (?)");
             ps.setString(1, movie.getId());
-            Array array = connection.createArrayOf("VARCHAR2", movie.getCharacters().toArray());
-            ps.setArray(2, array);
+            String listIds = movie.getCharacters().stream().collect(Collectors.joining(","));
+            ps.setString(2, listIds);
             for (String characterId : movie.getCharacters()) {
                 try (PreparedStatement cascadeStatement = connection.prepareStatement("UPDATE character SET movie_id = ? WHERE id = ?")) {
                     cascadeStatement.setString(1, movie.getId());
@@ -266,6 +288,7 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -279,14 +302,19 @@ public class Model implements Serializable {
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM movie WHERE id = ?")) {
             updStatement.setString(1, movie.getId());
             updStatement.executeQuery();
+            cache.remove(movie);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private List<Movie> getMovies() {
-        List<Movie> result = new ArrayList<>();
+    private List<BaseEntity> getMovies() {
+        if (cache.hasValuesForType(EntityType.MOVIE)) {
+            return Lists.newArrayList(cache.getValuesForType(EntityType.MOVIE));
+        }
+        
+        List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("SELECT * FROM movie")) {
@@ -308,6 +336,7 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
+        cache.putAll(result);
         return result;
     }
 
@@ -320,6 +349,9 @@ public class Model implements Serializable {
             updStatement.setString(4, персонаж.getName());
             updStatement.setString(5, персонаж.getDescription());
             updStatement.executeQuery();
+            cache.put(персонаж);
+            cache.clearCacheByType(EntityType.ACTOR);
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -335,6 +367,9 @@ public class Model implements Serializable {
             updStatement.setString(4, персонаж.getDescription());
             updStatement.setString(5, персонаж.getId());
             updStatement.executeQuery();
+            cache.put(персонаж);
+            cache.clearCacheByType(EntityType.ACTOR);
+            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -348,22 +383,27 @@ public class Model implements Serializable {
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM character WHERE id = ?")) {
             updStatement.setString(1, персонаж.getId());
             updStatement.executeQuery();
+            cache.remove(персонаж);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private List<Персонаж> getCharacters() {
-        List<Персонаж> result = new ArrayList<>();
+    private List<BaseEntity> getCharacters() {
+        if (cache.hasValuesForType(EntityType.CHARACTER)) {
+            return Lists.newArrayList(cache.getValuesForType(EntityType.CHARACTER));
+        }
+        
+        List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("SELECT * FROM character")) {
             while (rs.next()) {
                 Персонаж персонаж = new Персонаж();
                 персонаж.setId(rs.getString(1));
-                персонаж.setMovie(rs.getString(2));
-                персонаж.setActor(rs.getString(3));
+                персонаж.setActor(rs.getString(2));
+                персонаж.setMovie(rs.getString(3));
                 персонаж.setName(rs.getString(4));
                 персонаж.setDescription(rs.getString(5));
                 result.add(персонаж);
@@ -372,10 +412,15 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
+        cache.putAll(result);
         return result;
     }
 
     private Movie getMovieById(final String id) {
+        if (cache.hasValue(EntityType.MOVIE, id)) {
+            return (Movie) cache.getValueForId(EntityType.MOVIE, id);
+        }
+        
         Movie movie = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM movie WHERE id = ?")) {
             statement.setString(1, id);
@@ -392,6 +437,7 @@ public class Model implements Serializable {
                     movie.setGenres(rs.getString(8));
                     movie.setCharacters(cascadeQuery("id", "character", "movie_id", movie.getId()));
                     movie.setDirectors(cascadeQuery("director_id", "MovieDirectorConnector", "movie_id", movie.getId()));
+                    cache.put(movie);
                 }
             }
         } catch (SQLException ex) {
@@ -402,6 +448,10 @@ public class Model implements Serializable {
     }
 
     private Персонаж getCharacterById(final String id) {
+        if (cache.hasValue(EntityType.CHARACTER, id)) {
+            return (Персонаж) cache.getValueForId(EntityType.CHARACTER, id);
+        }
+        
         Персонаж персонаж = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM character WHERE id = ?")) {
             statement.setString(1, id);
@@ -413,6 +463,7 @@ public class Model implements Serializable {
                     персонаж.setActor(rs.getString(3));
                     персонаж.setName(rs.getString(4));
                     персонаж.setDescription(rs.getString(5));
+                    cache.put(персонаж);
                 }
             }
         } catch (SQLException ex) {
@@ -423,6 +474,10 @@ public class Model implements Serializable {
     }
 
     private Director getDirectorById(final String id) {
+        if (cache.hasValue(EntityType.DIRECTOR, id)) {
+            return (Director) cache.getValueForId(EntityType.DIRECTOR, id);
+        }
+        
         Director director = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM director WHERE id = ?")) {
             statement.setString(1, id);
@@ -434,6 +489,7 @@ public class Model implements Serializable {
                     director.setBirthDate(rs.getDate(3).toLocalDate());
                     director.setBirthCountry(rs.getString(4));
                     director.setMovies(cascadeQuery("movie_id", "MovieDirectorConnector", "director_id", director.getId()));
+                    cache.put(director);
                 }
             }
         } catch (SQLException ex) {
@@ -444,6 +500,9 @@ public class Model implements Serializable {
     }
 
     private Actor getActorById(final String id) {
+        if (cache.hasValue(EntityType.ACTOR, id)) {
+            return (Actor) cache.getValueForId(EntityType.ACTOR, id);
+        }
         Actor actor = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM actor WHERE id = ?")) {
             statement.setString(1, id);
@@ -455,6 +514,7 @@ public class Model implements Serializable {
                     actor.setBirthDate(rs.getDate(3).toLocalDate());
                     actor.setBirthCountry(rs.getString(4));
                     actor.setCharacters(cascadeQuery("id", "character", "actor_id", actor.getId()));
+                    cache.put(actor);
                 }
             }
         } catch (SQLException ex) {

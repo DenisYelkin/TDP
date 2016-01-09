@@ -17,10 +17,8 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
@@ -41,7 +39,7 @@ public class DirectorForm extends javax.swing.JFrame {
     private final List<Movie> currentMovies = Lists.newArrayList();
 
     private List<Movie> otherMovies;
-    
+
     private Map<String, Movie> moviesMap = Maps.newHashMap();
 
     /**
@@ -56,6 +54,15 @@ public class DirectorForm extends javax.swing.JFrame {
                 if (type == EntityType.MOVIE) {
                     otherMovies = (List<Movie>) entities;
                     moviesMap = BaseEntity.toMap(otherMovies);
+
+                    DefaultListModel currentMoviesListModel = new DefaultListModel();
+                    for (String movieId : director.getMovies()) {
+                        Movie movie = moviesMap.get(movieId);
+                        currentMovies.add(movie);
+                        currentMoviesListModel.addElement(movie.getName());
+                    }
+                    currentMoviesList.setModel(currentMoviesListModel);
+
                     otherMovies.removeAll(currentMovies);
                     DefaultListModel otherMovieListModel = new DefaultListModel();
                     otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
@@ -71,39 +78,31 @@ public class DirectorForm extends javax.swing.JFrame {
             this.director = new Director();
             this.newDirector = true;
         }
-        fillOtherLists();
+        try {
+            controller.requestEntities(EntityType.MOVIE);
+        } catch (IOException | JAXBException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+            this.setVisible(false);
+            this.dispose();
+        }
     }
 
     private void fillForm() {
         nameTextField.setText(director.getName());
         birthDateTextField.setText(director.getBirthDate().toString());
         birthCountryTextField.setText(director.getBirthCountry());
-
-        DefaultListModel currentMoviesListModel = new DefaultListModel();
-        for (String movieId : director.getMovies()) {
-            Movie movie = moviesMap.get(movieId);
-            currentMovies.add(movie);
-            currentMoviesListModel.addElement(movie.getName());
-        }
-        currentMoviesList.setModel(currentMoviesListModel);
     }
 
-    private void fillCurrentLists() {
+    private void fillLists() {
         DefaultListModel currentMoviesListModel = new DefaultListModel();
         for (Movie movie : currentMovies) {
             currentMoviesListModel.addElement(movie.getName());
         }
         currentMoviesList.setModel(currentMoviesListModel);
-    }
 
-    private void fillOtherLists() {
-        try {
-            controller.requestEntities(EntityType.MOVIE);
-        } catch (IOException | JAXBException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
-            this.setVisible(false);
-            this.dispose();
-        }
+        DefaultListModel otherMovieListModel = new DefaultListModel();
+        otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
+        otherMoviesList.setModel(otherMovieListModel);
     }
 
     /**
@@ -268,14 +267,14 @@ public class DirectorForm extends javax.swing.JFrame {
 
     @Override
     public void dispose() {
-        super.dispose(); 
+        super.dispose();
         try {
             controller.finishEditing(director);
         } catch (IOException | JAXBException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
         }
-    }  
-    
+    }
+
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
         String alertMessage = "В данные поля были введены некорректные данные:\n";
 
@@ -317,8 +316,7 @@ public class DirectorForm extends javax.swing.JFrame {
         if (index >= 0) {
             Movie movie = otherMovies.remove(index);
             currentMovies.add(movie);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_movieButtonAddActionPerformed
 
@@ -327,8 +325,7 @@ public class DirectorForm extends javax.swing.JFrame {
         if (index >= 0) {
             Movie movie = currentMovies.remove(index);
             otherMovies.add(movie);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_movieButtonDeleteActionPerformed
 

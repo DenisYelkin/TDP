@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,13 +40,13 @@ public class MovieForm extends javax.swing.JFrame {
     private final List<Персонаж> currentCharacters = Lists.newArrayList();
 
     private List<Персонаж> otherCharacters;
-    
+
     private Map<String, Персонаж> ассоциативныйМассивПерсонажей = Maps.newHashMap();
 
     private final List<Director> currentDirectors = Lists.newArrayList();
 
     private List<Director> otherDirectors;
-    
+
     private Map<String, Director> directorsMap = Maps.newHashMap();
 
     public MovieForm(Controller controller, Movie movie) {
@@ -59,12 +58,31 @@ public class MovieForm extends javax.swing.JFrame {
                 if (type == EntityType.CHARACTER) {
                     otherCharacters = (List<Персонаж>) entities;
                     ассоциативныйМассивПерсонажей = BaseEntity.toMap(otherCharacters);
+
+                    DefaultListModel currentCharacterListModel = new DefaultListModel();
+                    for (String идентификаторПерсонажа : movie.getCharacters()) {
+                        Персонаж персонаж = ассоциативныйМассивПерсонажей.get(идентификаторПерсонажа);
+                        currentCharacters.add(персонаж);
+                        currentCharacterListModel.addElement(персонаж.getName());
+                    }
+                    currentCharactersList.setModel(currentCharacterListModel);
+                    
                     otherCharacters.removeAll(currentCharacters);
                     DefaultListModel otherCharacterListModel = new DefaultListModel();
                     otherCharacters.stream().forEach((character) -> otherCharacterListModel.addElement(character.getName()));
                     otherCharactersList.setModel(otherCharacterListModel);
                 } else if (type == EntityType.DIRECTOR) {
                     otherDirectors = (List<Director>) entities;
+                    directorsMap = BaseEntity.toMap(otherDirectors);
+
+                    DefaultListModel currentDirectorsListModel = new DefaultListModel();
+                    for (String directorId : movie.getDirectors()) {
+                        Director director = directorsMap.get(directorId);
+                        currentDirectors.add(director);
+                        currentDirectorsListModel.addElement(director.getName());
+                    }
+                    currentDirectorsList.setModel(currentDirectorsListModel);
+                    
                     otherDirectors.removeAll(currentDirectors);
                     DefaultListModel otherDirectorsListModel = new DefaultListModel();
                     otherDirectors.stream().forEach((director) -> otherDirectorsListModel.addElement(director.getName()));
@@ -80,7 +98,14 @@ public class MovieForm extends javax.swing.JFrame {
             this.movie = new Movie();
             this.newMovie = true;
         }
-        fillOtherLists();
+        try {
+            controller.requestEntities(EntityType.CHARACTER);
+            controller.requestEntities(EntityType.DIRECTOR);
+        } catch (IOException | JAXBException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+            this.setVisible(false);
+            this.dispose();
+        }
     }
 
     private void fillForm() {
@@ -91,25 +116,9 @@ public class MovieForm extends javax.swing.JFrame {
         descriptionTextField.setText(movie.getDescription());
         genresTextField.setText(movie.getGenres());
         countriesTestField.setText(movie.getCountries());
-
-        DefaultListModel currentCharacterListModel = new DefaultListModel();
-        for (String идентификаторПерсонажа : movie.getCharacters()) {
-            Персонаж персонаж = ассоциативныйМассивПерсонажей.get(идентификаторПерсонажа);
-            currentCharacters.add(персонаж);
-            currentCharacterListModel.addElement(персонаж.getName());
-        }
-        currentCharactersList.setModel(currentCharacterListModel);
-
-        DefaultListModel currentDirectorsListModel = new DefaultListModel();
-        for (String directorId : movie.getDirectors()) {
-            Director director = directorsMap.get(directorId);
-            currentDirectors.add(director);
-            currentDirectorsListModel.addElement(director.getName());
-        }
-        currentDirectorsList.setModel(currentDirectorsListModel);
     }
 
-    private void fillCurrentLists() {
+    private void fillLists() {
         DefaultListModel currentCharacterListModel = new DefaultListModel();
         for (Персонаж character : currentCharacters) {
             currentCharacterListModel.addElement(character.getName());
@@ -121,17 +130,18 @@ public class MovieForm extends javax.swing.JFrame {
             currentDirectorsListModel.addElement(director.getName());
         }
         currentDirectorsList.setModel(currentDirectorsListModel);
-    }
-
-    private void fillOtherLists() {
-        try {
-            controller.requestEntities(EntityType.CHARACTER);
-            controller.requestEntities(EntityType.DIRECTOR);
-        } catch (IOException | JAXBException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
-            this.setVisible(false);
-            this.dispose();
+        
+        DefaultListModel otherCharacterListModel = new DefaultListModel();
+        for (Персонаж character : otherCharacters) {
+            otherCharacterListModel.addElement(character.getName());
         }
+        otherCharactersList.setModel(otherCharacterListModel);
+        
+        DefaultListModel otherDirectorsListModel = new DefaultListModel();
+        for (Director director : otherDirectors) {
+            otherDirectorsListModel.addElement(director.getName());
+        }
+        otherDirectorsList.setModel(otherDirectorsListModel);
     }
 
     /**
@@ -268,6 +278,9 @@ public class MovieForm extends javax.swing.JFrame {
 
         jLabel2.setText("Release Date");
 
+        descriptionTextField.setAutoscrolls(false);
+        descriptionTextField.setMaximumSize(new java.awt.Dimension(162, 162));
+
         jLabel6.setText("Countries");
 
         jLabel7.setText("Genres");
@@ -292,13 +305,13 @@ public class MovieForm extends javax.swing.JFrame {
                             .addComponent(jLabel7))
                         .addGap(24, 24, 24)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                            .addComponent(budgetTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 162, Short.MAX_VALUE)
+                            .addComponent(budgetTextField)
                             .addComponent(durationTextField)
                             .addComponent(releaseDateTextField, javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(nameTextField)
-                            .addComponent(descriptionTextField)
                             .addComponent(countriesTestField)
-                            .addComponent(genresTextField))))
+                            .addComponent(genresTextField)
+                            .addComponent(descriptionTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 162, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
@@ -403,7 +416,7 @@ public class MovieForm extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void cancelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelButtonActionPerformed
-        setVisible(false);        
+        setVisible(false);
         dispose();
     }//GEN-LAST:event_cancelButtonActionPerformed
 
@@ -457,7 +470,7 @@ public class MovieForm extends javax.swing.JFrame {
                 alertMessage = "Не удалось выполнить операцию";
                 JOptionPane.showMessageDialog(this, alertMessage);
             }
-            setVisible(false);            
+            setVisible(false);
             dispose();
         } else {
             JOptionPane.showMessageDialog(this, alertMessage);
@@ -466,21 +479,20 @@ public class MovieForm extends javax.swing.JFrame {
 
     @Override
     public void dispose() {
-        super.dispose(); 
+        super.dispose();
         try {
             controller.finishEditing(movie);
         } catch (IOException | JAXBException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
         }
-    }    
-    
+    }
+
     private void characterButtonAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_characterButtonAddActionPerformed
         int index = otherCharactersList.getSelectedIndex();
         if (index >= 0) {
             Персонаж character = otherCharacters.remove(index);
             currentCharacters.add(character);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_characterButtonAddActionPerformed
 
@@ -489,8 +501,7 @@ public class MovieForm extends javax.swing.JFrame {
         if (index >= 0) {
             Персонаж character = currentCharacters.remove(index);
             otherCharacters.add(character);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_characterButtonDeleteActionPerformed
 
@@ -499,8 +510,7 @@ public class MovieForm extends javax.swing.JFrame {
         if (index >= 0) {
             Director director = otherDirectors.remove(index);
             currentDirectors.add(director);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_directorButtonAddActionPerformed
 
@@ -509,8 +519,7 @@ public class MovieForm extends javax.swing.JFrame {
         if (index >= 0) {
             Director director = currentDirectors.remove(index);
             otherDirectors.add(director);
-            fillCurrentLists();
-            fillOtherLists();
+            fillLists();
         }
     }//GEN-LAST:event_directorButtonDeleteActionPerformed
 

@@ -97,7 +97,11 @@ public class MainForm extends javax.swing.JFrame {
                         Movie movie = (Movie) entity;
                         if (movie != null) {
                             controller.startEditing(movie);
+                            try {
                             form = new MovieForm(controller, movie);
+                            } catch (Throwable e) {
+                                e.printStackTrace();
+                            }
                         }
                         break;
                     case CHARACTER:

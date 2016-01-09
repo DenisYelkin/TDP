@@ -1,6 +1,8 @@
 package com.students.controller;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.students.cache.EntitiesCache;
 import com.students.commands.ClientCommand;
 import com.students.commands.ServerCommand;
 import com.students.entity.*;
@@ -27,10 +29,7 @@ public class Controller {
     private static final int PORT = 10500;
 
     private final Socket socket;
-    private final Map<String, BaseEntity> moviesCache = Maps.newConcurrentMap();
-    private final Map<String, BaseEntity> actorsCache = Maps.newConcurrentMap();
-    private final Map<String, BaseEntity> charactersCache = Maps.newConcurrentMap();
-    private final Map<String, BaseEntity> directorsCache = Maps.newConcurrentMap();
+    private final EntitiesCache cache = new EntitiesCache();
     private final ExecutorService pool;
     private ListOfEntitiesListener listOfEntitiesListener;
     private final EntityListener entityListener;
@@ -78,12 +77,12 @@ public class Controller {
 
     public void addEntity(BaseEntity entity) throws IOException, JAXBException {
         instructionForEntity(entity, ServerCommand.ADD);
-        getCacheByType(EntityType.fromEntity(entity)).put(entity.getId(), entity);
+        cache.put(entity);
     }
 
     public void editEntity(BaseEntity entity) throws IOException, JAXBException {
         instructionForEntity(entity, ServerCommand.APPLY_EDITING);
-        getCacheByType(EntityType.fromEntity(entity)).put(entity.getId(), entity);
+        cache.put(entity);
     }
 
     public void startEditing(BaseEntity entity) throws IOException, JAXBException {
@@ -102,7 +101,7 @@ public class Controller {
                 XMLUtils.write(os, new ClientTransferObject(ServerCommand.REMOVE, new BaseEntity(id), type));
             }
         }.execute();
-        getCacheByType(type).remove(id);
+        cache.remove(type, id);
     }
 
     public void requestEntityById(EntityType type, String id) throws IOException, JAXBException {
@@ -116,29 +115,13 @@ public class Controller {
     }
 
     public void requestEntities(EntityType type) throws IOException, JAXBException {
-        Map<String, BaseEntity> cache = getCacheByType(type);
-        if (cache.isEmpty()) {
+        if (!cache.hasValuesForType(type)) {
             OutputStream os = socket.getOutputStream();
             XMLUtils.write(os, new ClientTransferObject(ServerCommand.REQUEST_ENTITIES, null, type));
             XMLUtils.write(System.out, new ClientTransferObject(ServerCommand.REQUEST_ENTITIES, null, type));
 //            os.flush();
         } else {
-            listOfEntitiesListener.onDataReceive(type, new LinkedList<>(cache.values()));
-        }
-    }
-
-    private Map<String, BaseEntity> getCacheByType(EntityType type) {
-        switch (type) {
-            case MOVIE:
-                return moviesCache;
-            case ACTOR:
-                return actorsCache;
-            case CHARACTER:
-                return charactersCache;
-            case DIRECTOR:
-                return directorsCache;
-            default:
-                return null;
+            listOfEntitiesListener.onDataReceive(type, Lists.newArrayList(cache.getValuesForType(type)));
         }
     }
 
@@ -157,11 +140,8 @@ public class Controller {
                             if (entities.isEmpty()) {
                                 listOfEntitiesListener.onDataReceive(EntityType.FAKE, new LinkedList<>());
                             } else {
-                                Map<String, BaseEntity> cache = getCacheByType(type);
-                                entities.stream().forEach((entity) -> {
-                                    cache.put(entity.getId(), entity);
-                                });
-                                listOfEntitiesListener.onDataReceive(type, new LinkedList<>(cache.values()));
+                                cache.putAll(entities);
+                                listOfEntitiesListener.onDataReceive(type, Lists.newArrayList(cache.getValuesForType(type)));
                             }
                         }
                         break;
@@ -192,9 +172,6 @@ public class Controller {
     }
 
     public void refreshData() {
-        moviesCache.clear();
-        actorsCache.clear();
-        directorsCache.clear();
-        charactersCache.clear();
+        cache.clear();
     }
 }

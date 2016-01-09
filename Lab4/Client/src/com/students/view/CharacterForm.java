@@ -16,8 +16,6 @@ import com.students.entity.EntityType;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
 import javax.xml.bind.JAXBException;
@@ -41,9 +39,9 @@ public class CharacterForm extends javax.swing.JFrame {
     private Actor currentActor;
 
     private List<Actor> otherActors;
-    
+
     private Map<String, Movie> moviesMap = Maps.newHashMap();
-    
+
     private Map<String, Actor> actorsMap = Maps.newHashMap();
 
     public CharacterForm(Controller controller, Персонаж character) {
@@ -55,6 +53,12 @@ public class CharacterForm extends javax.swing.JFrame {
                 if (type == EntityType.MOVIE) {
                     otherMovies = (List<Movie>) entities;
                     moviesMap = BaseEntity.toMap(otherMovies);
+
+                    if (character.getMovie() != null) {
+                        currentMovie = moviesMap.get(character.getMovie());
+                        movieTextField.setText(currentMovie.getName());
+                    }
+
                     otherMovies.remove(currentMovie);
                     DefaultListModel otherMovieListModel = new DefaultListModel();
                     otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
@@ -62,6 +66,12 @@ public class CharacterForm extends javax.swing.JFrame {
                 } else if (type == EntityType.ACTOR) {
                     otherActors = (List<Actor>) entities;
                     actorsMap = BaseEntity.toMap(otherActors);
+
+                    if (character.getActor() != null) {
+                        currentActor = actorsMap.get(character.getActor());
+                        actorTextField.setText(currentActor.getName());
+                    }
+
                     otherActors.remove(currentActor);
                     DefaultListModel otherActorsListModel = new DefaultListModel();
                     otherActors.stream().forEach((actor) -> otherActorsListModel.addElement(actor.getName()));
@@ -77,29 +87,29 @@ public class CharacterForm extends javax.swing.JFrame {
             this.character = new Персонаж();
             this.newCharacter = true;
         }
-        fillOtherLists();
+        try {
+            controller.requestEntities(EntityType.MOVIE);
+            controller.requestEntities(EntityType.ACTOR);
+        } catch (IOException | JAXBException e) {
+            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
+            this.setVisible(false);
+            this.dispose();
+        }
     }
 
     private void fillForm() {
         nameTextField.setText(character.getName());
         descriptionTextField.setText(character.getDescription());
-        if (character.getActor() != null && character.getMovie() != null) {
-            currentActor = actorsMap.get(character.getActor());
-            currentMovie = moviesMap.get(character.getMovie());
-            actorTextField.setText(currentActor.getName());
-            movieTextField.setText(currentMovie.getName());
-        }
     }
 
     private void fillOtherLists() {
-        try {
-            controller.requestEntities(EntityType.MOVIE);
-            controller.requestEntities(EntityType.ACTOR);
-        } catch (IOException | JAXBException e) {
-            JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");            
-            this.setVisible(false);
-            this.dispose();
-        }
+        DefaultListModel otherActorsListModel = new DefaultListModel();
+        otherActors.stream().forEach((actor) -> otherActorsListModel.addElement(actor.getName()));
+        otherActorsList.setModel(otherActorsListModel);
+
+        DefaultListModel otherMovieListModel = new DefaultListModel();
+        otherMovies.stream().forEach((movie) -> otherMovieListModel.addElement(movie.getName()));
+        otherMoviesList.setModel(otherMovieListModel);
     }
 
     /**
@@ -324,14 +334,14 @@ public class CharacterForm extends javax.swing.JFrame {
 
     @Override
     public void dispose() {
-        super.dispose(); 
+        super.dispose();
         try {
             controller.finishEditing(character);
         } catch (IOException | JAXBException e) {
             JOptionPane.showMessageDialog(this, "Не удалось выполнить операцию");
         }
-    }  
-    
+    }
+
     private void actorButtonAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_actorButtonAddActionPerformed
         if (currentActor == null) {
             int index = otherActorsList.getSelectedIndex();
@@ -344,6 +354,9 @@ public class CharacterForm extends javax.swing.JFrame {
     }//GEN-LAST:event_actorButtonAddActionPerformed
 
     private void actorButtonDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_actorButtonDeleteActionPerformed
+        if (currentActor != null) {
+            otherActors.add(currentActor);
+        }
         currentActor = null;
         actorTextField.setText(null);
         fillOtherLists();
@@ -361,6 +374,9 @@ public class CharacterForm extends javax.swing.JFrame {
     }//GEN-LAST:event_movieButtonAddActionPerformed
 
     private void movieButtonDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_movieButtonDeleteActionPerformed
+        if (currentMovie != null) {
+            otherMovies.add(currentMovie);
+        }
         currentMovie = null;
         movieTextField.setText(null);
         fillOtherLists();
