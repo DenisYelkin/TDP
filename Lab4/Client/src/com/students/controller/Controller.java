@@ -1,7 +1,6 @@
 package com.students.controller;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.students.cache.EntitiesCache;
 import com.students.commands.ClientCommand;
 import com.students.commands.ServerCommand;
@@ -17,7 +16,6 @@ import java.net.SocketException;
 import java.util.LinkedList;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.xml.bind.JAXBException;
@@ -125,7 +123,7 @@ public class Controller {
         }
     }
 
-    public void receive() {
+    private void receive() {
         while (!socket.isClosed()) {
             try {
                 InputStream is = socket.getInputStream();

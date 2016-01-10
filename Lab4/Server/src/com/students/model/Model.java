@@ -19,7 +19,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-public class Model implements Serializable { 
+public class Model implements Serializable {
 
     private Connection connection;
     private EntitiesCache cache;
@@ -51,7 +51,6 @@ public class Model implements Serializable {
             updStatement.setDate(3, new Date(actor.getBirthDate().toEpochDay()));
             updStatement.setString(4, actor.getBirthCountry());
             updStatement.executeQuery();
-            cache.put(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -66,21 +65,19 @@ public class Model implements Serializable {
             updStatement.setString(3, actor.getBirthCountry());
             updStatement.setString(4, actor.getId());
             updStatement.executeQuery();
-            cache.put(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private void removeActor(Actor actor) {
-        if (actor == null) {
+    private void removeActor(String actorId) {
+        if (actorId == null) {
             return;
         }
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM actor WHERE id = ?")) {
-            updStatement.setString(1, actor.getId());
+            updStatement.setString(1, actorId);
             updStatement.executeQuery();
-            cache.remove(actor);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -101,10 +98,6 @@ public class Model implements Serializable {
     }
 
     private List<BaseEntity> getActors() {
-        if (cache.hasValuesForType(EntityType.ACTOR)) {
-            return Lists.newArrayList(cache.getValuesForType(EntityType.ACTOR));
-        }
-        
         List<BaseEntity> result = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("SELECT * FROM actor")) {
@@ -121,7 +114,6 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
-        cache.putAll(result);
         return result;
     }
 
@@ -141,8 +133,6 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
-            cache.put(director);
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -169,22 +159,19 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
-            cache.put(director);
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private void removeDirector(Director director) {
-        if (director == null) {
+    private void removeDirector(String directorId) {
+        if (directorId == null) {
             return;
         }
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM director WHERE id = ?")) {
-            updStatement.setString(1, director.getId());
+            updStatement.setString(1, directorId);
             updStatement.executeQuery();
-            cache.remove(director);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -192,10 +179,6 @@ public class Model implements Serializable {
     }
 
     private List<BaseEntity> getDirectors() {
-        if (cache.hasValuesForType(EntityType.DIRECTOR)) {
-            return Lists.newArrayList(cache.getValuesForType(EntityType.DIRECTOR));
-        }
-        
         List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
@@ -213,7 +196,6 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
-        cache.putAll(result);
         return result;
     }
 
@@ -245,7 +227,6 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -288,21 +269,19 @@ public class Model implements Serializable {
                     cascadeStatement.executeQuery();
                 }
             }
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private void removeMovie(Movie movie) {
-        if (movie == null) {
+    private void removeMovie(String movieId) {
+        if (movieId == null) {
             return;
         }
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM movie WHERE id = ?")) {
-            updStatement.setString(1, movie.getId());
+            updStatement.setString(1, movieId);
             updStatement.executeQuery();
-            cache.remove(movie);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -310,10 +289,6 @@ public class Model implements Serializable {
     }
 
     private List<BaseEntity> getMovies() {
-        if (cache.hasValuesForType(EntityType.MOVIE)) {
-            return Lists.newArrayList(cache.getValuesForType(EntityType.MOVIE));
-        }
-        
         List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
@@ -336,7 +311,6 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
-        cache.putAll(result);
         return result;
     }
 
@@ -349,9 +323,6 @@ public class Model implements Serializable {
             updStatement.setString(4, персонаж.getName());
             updStatement.setString(5, персонаж.getDescription());
             updStatement.executeQuery();
-            cache.put(персонаж);
-            cache.clearCacheByType(EntityType.ACTOR);
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -367,23 +338,19 @@ public class Model implements Serializable {
             updStatement.setString(4, персонаж.getDescription());
             updStatement.setString(5, персонаж.getId());
             updStatement.executeQuery();
-            cache.put(персонаж);
-            cache.clearCacheByType(EntityType.ACTOR);
-            cache.clearCacheByType(EntityType.MOVIE);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
     }
 
-    private void removeCharacter(Персонаж персонаж) {
-        if (персонаж == null) {
+    private void removeCharacter(String идентификаторПерсонажа) {
+        if (идентификаторПерсонажа == null) {
             return;
         }
         try (PreparedStatement updStatement = connection.prepareStatement("DELETE FROM character WHERE id = ?")) {
-            updStatement.setString(1, персонаж.getId());
+            updStatement.setString(1, идентификаторПерсонажа);
             updStatement.executeQuery();
-            cache.remove(персонаж);
         } catch (SQLException ex) {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
@@ -391,10 +358,6 @@ public class Model implements Serializable {
     }
 
     private List<BaseEntity> getCharacters() {
-        if (cache.hasValuesForType(EntityType.CHARACTER)) {
-            return Lists.newArrayList(cache.getValuesForType(EntityType.CHARACTER));
-        }
-        
         List<BaseEntity> result = new ArrayList<>();
 
         try (Statement statement = connection.createStatement();
@@ -412,15 +375,10 @@ public class Model implements Serializable {
             System.out.println("Ошибка при выполнении SQL запроса");
             ex.printStackTrace();
         }
-        cache.putAll(result);
         return result;
     }
 
     private Movie getMovieById(final String id) {
-        if (cache.hasValue(EntityType.MOVIE, id)) {
-            return (Movie) cache.getValueForId(EntityType.MOVIE, id);
-        }
-        
         Movie movie = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM movie WHERE id = ?")) {
             statement.setString(1, id);
@@ -437,7 +395,6 @@ public class Model implements Serializable {
                     movie.setGenres(rs.getString(8));
                     movie.setCharacters(cascadeQuery("id", "character", "movie_id", movie.getId()));
                     movie.setDirectors(cascadeQuery("director_id", "MovieDirectorConnector", "movie_id", movie.getId()));
-                    cache.put(movie);
                 }
             }
         } catch (SQLException ex) {
@@ -448,10 +405,6 @@ public class Model implements Serializable {
     }
 
     private Персонаж getCharacterById(final String id) {
-        if (cache.hasValue(EntityType.CHARACTER, id)) {
-            return (Персонаж) cache.getValueForId(EntityType.CHARACTER, id);
-        }
-        
         Персонаж персонаж = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM character WHERE id = ?")) {
             statement.setString(1, id);
@@ -463,7 +416,6 @@ public class Model implements Serializable {
                     персонаж.setActor(rs.getString(3));
                     персонаж.setName(rs.getString(4));
                     персонаж.setDescription(rs.getString(5));
-                    cache.put(персонаж);
                 }
             }
         } catch (SQLException ex) {
@@ -474,10 +426,6 @@ public class Model implements Serializable {
     }
 
     private Director getDirectorById(final String id) {
-        if (cache.hasValue(EntityType.DIRECTOR, id)) {
-            return (Director) cache.getValueForId(EntityType.DIRECTOR, id);
-        }
-        
         Director director = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM director WHERE id = ?")) {
             statement.setString(1, id);
@@ -489,7 +437,6 @@ public class Model implements Serializable {
                     director.setBirthDate(rs.getDate(3).toLocalDate());
                     director.setBirthCountry(rs.getString(4));
                     director.setMovies(cascadeQuery("movie_id", "MovieDirectorConnector", "director_id", director.getId()));
-                    cache.put(director);
                 }
             }
         } catch (SQLException ex) {
@@ -500,9 +447,6 @@ public class Model implements Serializable {
     }
 
     private Actor getActorById(final String id) {
-        if (cache.hasValue(EntityType.ACTOR, id)) {
-            return (Actor) cache.getValueForId(EntityType.ACTOR, id);
-        }
         Actor actor = null;
         try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM actor WHERE id = ?")) {
             statement.setString(1, id);
@@ -514,7 +458,6 @@ public class Model implements Serializable {
                     actor.setBirthDate(rs.getDate(3).toLocalDate());
                     actor.setBirthCountry(rs.getString(4));
                     actor.setCharacters(cascadeQuery("id", "character", "actor_id", actor.getId()));
-                    cache.put(actor);
                 }
             }
         } catch (SQLException ex) {
@@ -526,35 +469,46 @@ public class Model implements Serializable {
 
     public BaseEntity getEntityById(EntityType type, String id) {
         synchronized (this) {
+            if (cache.hasValue(type, id)) {
+                return cache.getValueForId(type, id);
+            }
+            BaseEntity entity = null;
             switch (type) {
                 case MOVIE:
-                    return getMovieById(id);
+                    entity = getMovieById(id);
+                    break;
                 case ACTOR:
-                    return getActorById(id);
+                    entity = getActorById(id);
+                    break;
                 case CHARACTER:
-                    return getCharacterById(id);
+                    entity = getCharacterById(id);
+                    break;
                 case DIRECTOR:
-                    return getDirectorById(id);
+                    entity = getDirectorById(id);
+                    break;
                 default:
                     throw new IllegalArgumentException("Неопознанный вид сущности");
             }
+            cache.put(entity);
+            return entity;
         }
     }
 
     public void removeEntityById(EntityType type, String id) {
         synchronized (this) {
+            cache.remove(type, id);
             switch (type) {
                 case MOVIE:
-                    removeMovie(getMovieById(id));
+                    removeMovie(id);
                     break;
                 case ACTOR:
-                    removeActor(getActorById(id));
+                    removeActor(id);
                     break;
                 case CHARACTER:
-                    removeCharacter(getCharacterById(id));
+                    removeCharacter(id);
                     break;
                 case DIRECTOR:
-                    removeDirector(getDirectorById(id));
+                    removeDirector(id);
                     break;
                 default:
                     throw new IllegalArgumentException("Неопознанный вид сущности");
@@ -564,58 +518,82 @@ public class Model implements Serializable {
 
     public EntityType addEntity(BaseEntity entity) {
         synchronized (this) {
-            if (entity instanceof Movie) {
-                addMovie((Movie) entity);
-                return EntityType.MOVIE;
-            } else if (entity instanceof Персонаж) {
-                addCharacter((Персонаж) entity);
-                return EntityType.CHARACTER;
-            } else if (entity instanceof Actor) {
-                addActor((Actor) entity);
-                return EntityType.ACTOR;
-            } else if (entity instanceof Director) {
-                addDirector((Director) entity);
-                return EntityType.DIRECTOR;
-            } else {
-                throw new IllegalArgumentException("Неопознанный вид сущности");
+            cache.put(entity);
+            EntityType type = EntityType.fromEntity(entity);
+            switch (type) {
+                case MOVIE:
+                    addMovie((Movie) entity);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.MOVIE;
+                case CHARACTER:
+                    addCharacter((Персонаж) entity);
+                    cache.clearCacheByType(EntityType.ACTOR);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.CHARACTER;
+                case ACTOR:
+                    addActor((Actor) entity);
+                    return EntityType.ACTOR;
+                case DIRECTOR:
+                    addDirector((Director) entity);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.DIRECTOR;
+                default:
+                    throw new IllegalArgumentException("Неопознанный вид сущности");
             }
         }
     }
 
     public EntityType editEntity(BaseEntity entity) {
         synchronized (this) {
-            if (entity instanceof Movie) {
-                editMovie((Movie) entity);
-                return EntityType.MOVIE;
-            } else if (entity instanceof Персонаж) {
-                editCharacter((Персонаж) entity);
-                return EntityType.CHARACTER;
-            } else if (entity instanceof Actor) {
-                editActor((Actor) entity);
-                return EntityType.ACTOR;
-            } else if (entity instanceof Director) {
-                editDirector((Director) entity);
-                return EntityType.DIRECTOR;
-            } else {
-                throw new IllegalArgumentException("Неопознанный вид сущности");
+            cache.put(entity);
+            EntityType type = EntityType.fromEntity(entity);
+            switch (type) {
+                case MOVIE:
+                    editMovie((Movie) entity);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.MOVIE;
+                case CHARACTER:
+                    editCharacter((Персонаж) entity);
+                    cache.clearCacheByType(EntityType.ACTOR);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.CHARACTER;
+                case ACTOR:
+                    editActor((Actor) entity);
+                    return EntityType.ACTOR;
+                case DIRECTOR:
+                    editDirector((Director) entity);
+                    cache.clearCacheByType(EntityType.MOVIE);
+                    return EntityType.DIRECTOR;
+                default:
+                    throw new IllegalArgumentException("Неопознанный вид сущности");
             }
         }
     }
 
     public List<? extends BaseEntity> getEntities(EntityType type) {
         synchronized (this) {
+            if (cache.hasValuesForType(type)) {
+                return Lists.newArrayList(cache.getValuesForType(type));
+            }
+            List<? extends BaseEntity> result = null;
             switch (type) {
                 case MOVIE:
-                    return getMovies();
+                    result = getMovies();
+                    break;
                 case ACTOR:
-                    return getActors();
+                    result = getActors();
+                    break;
                 case CHARACTER:
-                    return getCharacters();
+                    result = getCharacters();
+                    break;
                 case DIRECTOR:
-                    return getDirectors();
+                    result = getDirectors();
+                    break;
                 default:
                     throw new IllegalArgumentException("Неопознанный вид сущности");
             }
+            cache.putAll(result);
+            return result;
         }
     }
 
